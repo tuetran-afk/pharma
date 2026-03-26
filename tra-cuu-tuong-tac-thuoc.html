@@ -226,7 +226,29 @@
   .stat-chip.warning { background: rgba(255,184,48,0.08); border-color: rgba(255,184,48,0.25); color: var(--warning); }
 
   /* Results */
-  .results { display: flex; flex-direction: column; gap: 14px; }
+  .results { display: flex; flex-direction: column; gap: 28px; padding-top: 4px; }
+
+  /* Source footer outside collapse */
+  .card-source-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .card-source-footer .info-label {
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+
+  .card-source-footer .source-tag {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
 
   .result-card {
     background: var(--surface);
@@ -452,6 +474,14 @@
     text-align: center;
   }
 
+  .source-block {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  .source-block .info-label { color: var(--muted); }
+
   /* Sort bar */
   .sort-bar {
     display: flex;
@@ -619,9 +649,9 @@
     <button class="sort-btn active" data-sort="severity" onclick="setSort('severity',this)">⚠️ Mức độ nghiêm trọng</button>
     <button class="sort-btn" data-sort="default" onclick="setSort('default',this)">🔢 Mặc định</button>
   </div>
-  <div id="results"></div>
+  <div id="results" class="results"></div>
 
-  <footer>Dữ liệu tra cứu từ cơ sở dữ liệu tương tác thuốc của Hội Dược sĩ Bệnh viện Việt Nam· Chỉ dùng cho mục đích tham khảo lâm sàng</footer>
+  <footer>Dữ liệu tra cứu từ cơ sở dữ liệu tương tác thuốc theo Quyết định 5948/BYT · Chỉ dùng cho mục đích tham khảo lâm sàng</footer>
 </div>
 
 <script>
@@ -671,18 +701,11 @@ function renderCard(item, q1, q2) {
       <div class="card-actions" onclick="event.stopPropagation()">
         <button class="btn-icon" title="Sao chép thông tin" onclick="copyCard('${uid}','${escAttr(t1)}','${escAttr(t2)}','${escAttr(level)}','${escAttr(nhom)}','${escAttr(cochef)}','${escAttr(hq)}','${escAttr(xt)}','${escAttr(src)}')">📋</button>
       </div>
+      <span class="nhom-badge">🧬 ${nhom}</span>
       <span class="level-badge level-${lc}">${level || 'Không xác định'}</span>
       <i class="toggle-icon" id="${uid}_icon">▾</i>
     </div>
     <div class="card-body" id="${uid}_body">
-      <div class="info-block">
-        <span class="info-label">Nhóm tương tác</span>
-        <span class="nhom-badge">🧬 ${nhom}</span>
-      </div>
-      <div class="info-block">
-        <span class="info-label">Nguồn</span>
-        <span class="source-tag">${src.replace(/\n/g, '<br>')}</span>
-      </div>
       <div class="info-block full">
         <span class="info-label">Cơ chế tương tác</span>
         <span class="info-value">${cochef}</span>
@@ -698,6 +721,10 @@ function renderCard(item, q1, q2) {
           <span class="info-value">${xt.replace(/\n/g, '<br>')}</span>
         </div>
       </div>
+    </div>
+    <div class="card-source-footer">
+      <span class="info-label">Nguồn:</span>
+      <span class="source-tag">${src.replace(/\n/g, '<br>')}</span>
     </div>
   </div>`;
 }
