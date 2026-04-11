@@ -1153,36 +1153,18 @@ function renderTinh() {
 // ── PARSE QUỐC GIA ──
 function parseRowsQG(rows) {
   const hdr = rows.length ? Object.keys(rows[0]) : [];
-  // Col mapping by position/pattern since header row 2 uses mixed cols
-  const norm2 = s => norm(String(s || ''));
-  const col = key => {
-    const patterns = {
-      bv:          ['bv duoc phan bo','bv phan bo','benh vien'],
-      matHang:     ['ten mat hang','mat hang'],  // col 2 = index 2
-      slTrung:     ['sl trung thau','sl trung'],
-      slDaGiao:    ['sl da giao','da giao'],
-      conLai:      ['con lai','sl con lai'],
-      donGia:      ['gia','don gia'],
-      ngayKy:      ['ngay ky hop dong','ngay ky'],
-      ngayKetThuc: ['tg ket thuc','ket thuc'],
-      ghiChu:      ['ghi chu'],
-      ttk:         ['ttk'],
-      hdLayVe:     ['hop dong lay ve'],
-    }[key] || [];
-    return hdr.find(h => patterns.some(p => norm2(h).includes(p))) || null;
-  };
-
-  // QG sheet: col 0=STT, col 1=BV, col 2=matHang, col 3=SLTrung, col 4=SLDaGiao, col 5=conLai, col 6=GIA, col 7=ngayKy, col 8=ngayKetThuc
-  // Use positional fallback since header keys might be weird
-  const colBV = col('bv') || hdr[1] || null;
-  const colMH = col('matHang') || hdr[2] || null;
-  const colSLT = col('slTrung') || hdr[3] || null;
-  const colSLG = col('slDaGiao') || hdr[4] || null;
-  const colCL = col('conLai') || hdr[5] || null;
-  const colGia = col('donGia') || hdr[6] || null;
-  const colNK = col('ngayKy') || hdr[7] || null;
-  const colNKT = col('ngayKetThuc') || hdr[8] || null;
-  const colGC = col('ghiChu') || hdr[9] || null;
+  // QG sheet cố định: col 0=STT, col 1=BV, col 2=matHang, col 3=SLTrung,
+  //                    col 4=SLDaGiao, col 5=conLai, col 6=GIÁ, col 7=ngayKy,
+  //                    col 8=ngayKetThuc, col 9=ghiChu
+  const colBV  = hdr[1];
+  const colMH  = hdr[2];
+  const colSLT = hdr[3];
+  const colSLG = hdr[4];
+  const colCL  = hdr[5];
+  const colGia = hdr[6];   // "GIÁ"
+  const colNK  = hdr[7];
+  const colNKT = hdr[8];
+  const colGC  = hdr[9];
 
   const sn = v => { try { if (v===''||v==null) return 0; return parseFloat(String(v).replace(/[^\d.-]/g,''))||0; } catch{return 0;} };
   const sd = v => {
@@ -1200,9 +1182,8 @@ function parseRowsQG(rows) {
   return rows.filter(r => {
     const bvVal = String(r[colBV]||'').trim();
     const mhVal = String(r[colMH]||'').trim();
-    // Skip total rows, empty rows, header repeats
     if (!bvVal && !mhVal) return false;
-    if (bvVal.toLowerCase().startsWith('t') && (bvVal.toLowerCase().includes('tổng') || bvVal.toLowerCase().includes('tong'))) return false;
+    if (bvVal.toLowerCase().includes('tổng') || bvVal.toLowerCase().includes('tong')) return false;
     if (bvVal === 'BV ĐƯỢC PHÂN BỔ' || bvVal === 'STT') return false;
     if (!mhVal || !bvVal) return false;
     return true;
