@@ -1,12 +1,12 @@
 {
-  "name": "Theo dõi Gói Thầu",
+  "name": "Gói Thầu",
   "short_name": "Gói Thầu",
   "description": "Theo dõi tiến độ HSDT - Dashboard biểu đồ Gantt",
   "start_url": "/pharma/hsduthau/",
   "scope": "/pharma/hsduthau/",
   "display": "standalone",
-  "background_color": "#eeedea",
-  "theme_color": "#378ADD",
+  "background_color": "#f5e6d0",
+  "theme_color": "#EF8C1A",
   "orientation": "any",
   "icons": [
     {
