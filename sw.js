@@ -21,16 +21,23 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
 
   const url = new URL(e.request.url);
-  const isIndex = url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
+
+  // Chỉ xử lý đúng scope /pharma/ — không can thiệp vào subfolder như /pharma/hsduthau/
+  const isOwnScope = url.pathname === '/pharma/' || url.pathname === '/pharma/index.html';
+  if (!isOwnScope && url.pathname.startsWith('/pharma/') && !url.hostname.includes('cdnjs')) {
+    return; // Để browser tự xử lý, không intercept
+  }
+
+  const isIndex = isOwnScope;
 
   if (isIndex) {
-    // index.html: luôn lấy network trước, cache làm fallback offline
+    // index.html: network trước, cache làm fallback offline
     e.respondWith(
       fetch(e.request).then(res => {
         const clone = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
         return res;
-      }).catch(() => caches.match('./index.html'))
+      }).catch(() => caches.match('/pharma/index.html'))
     );
     return;
   }
@@ -46,7 +53,7 @@ self.addEventListener('fetch', e => {
         }
         return res;
       }).catch(() => {
-        if (e.request.mode === 'navigate') return caches.match('./index.html');
+        if (e.request.mode === 'navigate') return caches.match('/pharma/index.html');
       });
     })
   );
