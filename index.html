@@ -190,6 +190,7 @@ tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF
     <span class="update-time" id="update-time-hcm" style="display:none">⏳</span>
     <span class="update-time" id="update-time-tinh" style="display:none">⏳</span>
     <span class="update-time" id="update-time-qg" style="display:none">⏳</span>
+    <span class="update-time" id="update-time-rr" style="display:none">⏳</span>
   </h1>
 
   <!-- TAB BAR + global actions -->
@@ -198,6 +199,7 @@ tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF
       <button class="tab-btn active" id="tab-btn-hcm" onclick="switchTab('hcm')">🏙️ TP.HCM</button>
       <button class="tab-btn" id="tab-btn-tinh" onclick="switchTab('tinh')">🗺️ Tỉnh</button>
       <button class="tab-btn" id="tab-btn-qg" onclick="switchTab('qg')">🇻🇳 Quốc Gia</button>
+      <button class="tab-btn" id="tab-btn-rr" onclick="switchTab('rr')">📋 Chờ kết quả</button>
     </div>
     <label class="btn btn-blue" style="cursor:pointer;white-space:nowrap;flex-shrink:0">📂 Load Excel<input type="file" id="file-in" accept=".xlsx,.xls" style="display:none"></label>
     <button class="btn" onclick="clearCache()" title="Xóa dữ liệu đã lưu" style="white-space:nowrap;flex-shrink:0;color:#999">🗑 Xóa cache</button>
@@ -338,6 +340,42 @@ tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF
     </div>
   </div>
 
+  <!-- ===== TAB THẦU RR - CHỜ KẾT QUẢ ===== -->
+  <div class="tab-panel" id="tab-rr">
+    <div class="stats" id="stats-row-rr"></div>
+    <div class="card" style="margin-bottom:.5rem">
+      <div class="toolbar">
+        <input type="text" id="search-input-rr" placeholder="🔍 Tìm mặt hàng / BV..." oninput="renderRR()" style="flex:2;min-width:120px">
+        <div class="ms-wrap" id="ms-bv-wrap-rr" style="flex:1.5;min-width:130px">
+          <button class="ms-btn" id="ms-bv-btn-rr" onclick="toggleMsBV('rr',event)" type="button">
+            <span class="ms-btn-text" id="ms-bv-label-rr">-- Tất cả bệnh viện --</span>
+            <span class="ms-badge" id="ms-bv-badge-rr" style="display:none"></span>
+            <span class="ms-caret">▼</span>
+          </button>
+          <div class="ms-dropdown" id="ms-bv-dropdown-rr">
+            <div class="ms-search"><input type="text" id="ms-bv-search-rr" placeholder="🔍 Tìm bệnh viện..." oninput="filterMsBV('rr')"></div>
+            <div class="ms-actions">
+              <button class="ms-action-btn" onclick="selectAllBV('rr')" type="button">Chọn tất cả</button>
+              <button class="ms-action-btn" onclick="clearAllBV('rr')" type="button">Bỏ tất cả</button>
+            </div>
+            <div class="ms-list" id="ms-bv-list-rr"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+          <button class="btn" onclick="toggleAll('rr')" id="btn-collapse-rr" style="white-space:nowrap">⊟ Gom tất cả</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;border:none;background:transparent">
+      <div class="table-wrap" id="table-wrap-rr">
+        <table>
+          <thead id="tbl-head-rr"></thead>
+          <tbody id="tbl-body-rr"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div><!-- .page -->
 
 <div class="tip" id="tip"></div>
@@ -347,7 +385,7 @@ tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF
 // ── GLOBALS ──
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 let activeTab = 'hcm';
-let allDataHCM = [], allDataTinh = [], allDataQG = [];
+let allDataHCM = [], allDataTinh = [], allDataQG = [], allDataRR = [];
 let tipCache = [];
 
 // ── FORMAT HELPERS ──
@@ -374,7 +412,7 @@ function warnLevel(r) {
 // ── TAB SWITCHING ──
 function switchTab(tab) {
   activeTab = tab;
-  ['hcm','tinh','qg'].forEach(t => {
+  ['hcm','tinh','qg','rr'].forEach(t => {
     document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
     document.getElementById('tab-' + t).classList.toggle('active', t === tab);
     const upd = document.getElementById('update-time-' + t);
@@ -492,7 +530,26 @@ document.getElementById('file-in').addEventListener('change', e => {
         renderQG();
       }
 
-      toast('✅ Đã tải từ ' + f.name + (sheetHCM ? ' [TPHCM]' : '') + (sheetTinh ? ' [Tỉnh]' : '') + (sheetQG ? ' [Quốc Gia]' : ''));
+      // --- Load Thầu RR TPHCM sheet (chờ kết quả) ---
+      const sheetRR = wb.SheetNames.find(n =>
+        n.toLowerCase().includes('thầu rr') && (n.toLowerCase().includes('tp.hcm') || n.toLowerCase().includes('tphcm'))
+      ) || wb.SheetNames.find(n =>
+        n.toLowerCase().includes('rr') && (n.toLowerCase().includes('tp.hcm') || n.toLowerCase().includes('tphcm'))
+      ) || wb.SheetNames.find(n => n.toLowerCase().includes('thầu rr'));
+
+      if (sheetRR) {
+        const ws4 = wb.Sheets[sheetRR];
+        // Row 0 = title, Row 1 = headers → range:1 makes row 1 the header keys
+        const rows4 = XLSX.utils.sheet_to_json(ws4, { defval: '', raw: false, range: 1 });
+        allDataRR = parseRowsRR(rows4);
+        const labelRR = 'Thầu RR – Chờ kết quả — ' + sheetRR;
+        document.getElementById('update-time-rr').textContent = labelRR + ' 💾';
+        document.getElementById('update-time-rr').style.display = activeTab === 'rr' ? '' : 'none';
+        try { localStorage.setItem('thau_rr_data', JSON.stringify(allDataRR)); localStorage.setItem('thau_rr_label', labelRR); } catch(e){}
+        renderRR();
+      }
+
+      toast('✅ Đã tải từ ' + f.name + (sheetHCM ? ' [TPHCM]' : '') + (sheetTinh ? ' [Tỉnh]' : '') + (sheetQG ? ' [Quốc Gia]' : '') + (sheetRR ? ' [Chờ KQ]' : ''));
     } catch(err) { toast('❌ Lỗi: ' + err.message); console.error(err); }
   };
   rd.readAsArrayBuffer(f);
@@ -670,14 +727,14 @@ function parseRowsTinh(rows) {
 }
 
 // ── MULTI-SELECT BV (generic) ──
-const _selectedBVs = { hcm: new Set(), tinh: new Set(), qg: new Set() };
-const _collapsed = { hcm: {}, tinh: {}, qg: {} };
+const _selectedBVs = { hcm: new Set(), tinh: new Set(), qg: new Set(), rr: new Set() };
+const _collapsed = { hcm: {}, tinh: {}, qg: {}, rr: {} };
 
 function getBVList(tab) {
   if (tab === 'hcm') return [...new Set(allDataHCM.map(r => r.bv))].sort((a,b) => a.localeCompare(b,'vi'));
   if (tab === 'tinh') return [...new Set(allDataTinh.map(r => r.donViDauThau))].sort((a,b) => a.localeCompare(b,'vi'));
-  // qg: filter by matHang
-  return [...new Set(allDataQG.map(r => r.matHang))].sort((a,b) => a.localeCompare(b,'vi'));
+  if (tab === 'qg') return [...new Set(allDataQG.map(r => r.matHang))].sort((a,b) => a.localeCompare(b,'vi'));
+  return [...new Set(allDataRR.map(r => r.bv))].sort((a,b) => a.localeCompare(b,'vi'));
 }
 
 function refreshBVSel(tab) {
@@ -707,7 +764,7 @@ function filterMsBV(tab) {
 function toggleBV(tab, bv, checked) {
   if (checked) _selectedBVs[tab].add(bv); else _selectedBVs[tab].delete(bv);
   updateMsBVBtn(tab);
-  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : renderQG();
+  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : tab === 'qg' ? renderQG() : renderRR();
 }
 
 function selectAllBV(tab) {
@@ -715,7 +772,7 @@ function selectAllBV(tab) {
   const q = document.getElementById('ms-bv-search-' + tab).value;
   renderMsBVList(tab, getBVList(tab), q);
   updateMsBVBtn(tab);
-  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : renderQG();
+  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : tab === 'qg' ? renderQG() : renderRR();
 }
 
 function clearAllBV(tab) {
@@ -723,7 +780,7 @@ function clearAllBV(tab) {
   const q = document.getElementById('ms-bv-search-' + tab).value;
   renderMsBVList(tab, getBVList(tab), q);
   updateMsBVBtn(tab);
-  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : renderQG();
+  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : tab === 'qg' ? renderQG() : renderRR();
 }
 
 function updateMsBVBtn(tab) {
@@ -1350,6 +1407,204 @@ function renderQG() {
   window._tipCache = tipCache;
 }
 
+// ── PARSE THẦU RR (Chờ kết quả) ──
+function parseRowsRR(rows) {
+  const hdr = rows.length ? Object.keys(rows[0]) : [];
+  // Sheet "Thầu RR (TP.HCM)" header row 1 (0-indexed):
+  // [0]=Năm KQ, [1]=Năm đóng thầu, [2]=check, [3]=TT dự thầu, [4]=TT trúng thầu,
+  // [5]=ĐiểmKT BMT, [6]=ĐiểmKT NT, [7]=Hàng cạnh tranh,
+  // [8]=Tên bệnh viện, [9]=Tên mặt hàng, [10]=Số lượng dự thầu,
+  // [11]=Giá dự thầu, [12]=Thành tiền, [13]=Công ty thầu,
+  // [14]=Kết quả trúng thầu, [15]=Thời điểm đóng thầu,
+  // [16]=Ngày có KQ thầu, [17]=Người làm thầu
+  const colNamKQ  = hdr[0];
+  const colBV     = hdr[8];
+  const colMH     = hdr[9];
+  const colSL     = hdr[10];
+  const colGia    = hdr[11];
+  const colCty    = hdr[13];
+  const colKQ     = hdr[14];
+  const colNgay   = hdr[15];  // Thời điểm đóng thầu
+  const colNgayKQ = hdr[16];  // Ngày có KQ — null = chưa có kết quả
+  const colNguoi  = hdr[17];
+
+  const sn = v => { try { if(v===''||v==null) return 0; return parseFloat(String(v).replace(/[^\d.-]/g,''))||0; } catch{return 0;} };
+  const sd = v => {
+    try {
+      if (!v || String(v).trim() === '' || String(v).trim() === 'NaT') return null;
+      const s = String(v).trim();
+      const dmY = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmY) return `${dmY[3]}-${dmY[2].padStart(2,'0')}-${dmY[1].padStart(2,'0')}`;
+      const d = new Date(v);
+      if (!isNaN(d) && d.getFullYear() > 2000) return d.toISOString().slice(0,10);
+      return null;
+    } catch{return null;}
+  };
+  const isBlank = v => !v || String(v).trim() === '' || String(v).trim().toLowerCase() === 'nan' || String(v).trim() === 'NaT';
+
+  // Forward-fill ngayDongThau và ngayCoKQ theo nhóm BV
+  // (merged cells: chỉ dòng đầu mỗi BV có giá trị)
+  let lastBV = '', lastNgayDong = null, lastNgayKQ = null;
+
+  return rows
+    .filter(r => {
+      const namKQ = sn(r[colNamKQ]);
+      const bv = String(r[colBV]||'').trim();
+      const mh = String(r[colMH]||'').trim();
+      // Chỉ lấy năm 2026, có mặt hàng, không phải dòng tổng
+      if (Math.round(namKQ) !== 2026) return false;
+      if (!bv || !mh) return false;
+      if (bv.toLowerCase().startsWith('cộng') || bv.toLowerCase().startsWith('cong')) return false;
+      return true;
+    })
+    .map(r => {
+      const bv = String(r[colBV]||'').trim();
+
+      // Forward-fill: reset khi sang BV mới
+      if (bv !== lastBV) {
+        lastBV = bv;
+        lastNgayDong = null;
+        lastNgayKQ   = null;
+      }
+      // Cập nhật nếu dòng này có giá trị
+      const rawNgay   = sd(r[colNgay]);
+      const rawNgayKQ = sd(r[colNgayKQ]);
+      if (rawNgay)   lastNgayDong = rawNgay;
+      if (rawNgayKQ) lastNgayKQ   = rawNgayKQ;
+
+      return {
+        bv,
+        matHang:      String(r[colMH]||'').trim(),
+        slDuThau:     sn(r[colSL]),
+        giaDuThau:    sn(r[colGia]),
+        congTy:       String(r[colCty]||'').trim(),
+        nguoi:        String(r[colNguoi]||'').trim(),
+        ngayDongThau: lastNgayDong,
+        ngayCoKQ:     lastNgayKQ,
+        hasKQ:        !!lastNgayKQ,
+        daysUntil:    lastNgayDong ? Math.round((new Date(lastNgayDong) - TODAY) / 86400000) : null,
+      };
+    })
+    // Filter: chỉ giữ rows CHƯA có ngày kết quả
+    .filter(r => !r.hasKQ);
+}
+
+// ── RENDER THẦU RR (Chờ kết quả) ──
+function renderRR() {
+  refreshBVSel('rr');
+  const fSearch = (document.getElementById('search-input-rr').value || '').toLowerCase().trim();
+  const filtered = allDataRR.filter(r => {
+    if (_selectedBVs['rr'].size > 0 && !_selectedBVs['rr'].has(r.bv)) return false;
+    if (fSearch && !(r.matHang + ' ' + r.bv).toLowerCase().includes(fSearch)) return false;
+    return true;
+  });
+
+  // Stats
+  const bvCount = new Set(filtered.map(r => r.bv)).size;
+  const mhCount = new Set(filtered.map(r => r.matHang)).size;
+  const upcoming = filtered.filter(r => r.daysUntil != null && r.daysUntil >= 0).length;
+  const noDate   = filtered.filter(r => r.daysUntil == null).length;
+  const totalSL  = filtered.reduce((s,r) => s + r.slDuThau, 0);
+
+  document.getElementById('stats-row-rr').innerHTML = `
+    <div class="stat">
+      <div class="stat-label">Bệnh viện</div>
+      <div class="stat-val">${bvCount}</div>
+      <div class="stat-sub">${mhCount} mặt hàng</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Tổng mục dự thầu</div>
+      <div class="stat-val">${filtered.length}</div>
+      <div class="stat-sub">SL: ${fmtN(totalSL)}</div>
+    </div>
+    <div class="stat" style="${upcoming>0?'outline:2px solid #378ADD;':''}">
+      <div class="stat-label" style="color:#0C447C">📅 Có ngày mở thầu</div>
+      <div class="stat-val" style="color:#0C447C">${upcoming}</div>
+      <div class="stat-sub">sắp mở thầu</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" style="color:var(--text3)">📭 Chưa có ngày</div>
+      <div class="stat-val" style="color:var(--text3)">${noDate}</div>
+      <div class="stat-sub">chưa lên lịch</div>
+    </div>
+  `;
+
+  // Group by BV
+  const grouped = {};
+  filtered.forEach(r => { if (!grouped[r.bv]) grouped[r.bv] = []; grouped[r.bv].push(r); });
+
+  document.getElementById('tbl-head-rr').innerHTML = `
+    <tr>
+      <th class="pin-mat" style="left:0;min-width:170px;max-width:170px">Tên mặt hàng</th>
+      <th style="text-align:right;min-width:80px;border-left:1px solid var(--border2)">SL dự thầu</th>
+      <th style="text-align:right;min-width:80px;border-left:1px solid var(--border2)">Giá dự thầu</th>
+      <th style="text-align:right;min-width:90px;border-left:1px solid var(--border2)">Thành tiền</th>
+      <th style="text-align:center;min-width:110px;border-left:2px solid var(--border2)">Ngày mở thầu</th>
+      <th style="min-width:80px;border-left:1px solid var(--border2)">Công ty</th>
+      <th style="min-width:70px;border-left:1px solid var(--border2)">Người làm</th>
+    </tr>`;
+
+  tipCache = [];
+  let html = '';
+
+  if (!Object.keys(grouped).length) {
+    html = `<tr><td colspan="7" class="no-data">📭 Không có dữ liệu phù hợp</td></tr>`;
+    document.getElementById('tbl-body-rr').innerHTML = html;
+    return;
+  }
+
+  if (!window._allBvKeys) window._allBvKeys = {};
+  window._allBvKeys['rr'] = Object.fromEntries(Object.keys(grouped).map(k => [encodeURIComponent(k), true]));
+
+  Object.keys(grouped).sort((a,b) => a.localeCompare(b,'vi')).forEach(bv => {
+    const gRows = grouped[bv];
+    const gSL = gRows.reduce((s,r) => s + r.slDuThau, 0);
+    const gTT = gRows.reduce((s,r) => s + r.slDuThau * r.giaDuThau, 0);
+    const hasDate = gRows.some(r => r.ngayDongThau);
+    const earliestDate = gRows.map(r => r.ngayDongThau).filter(Boolean).sort()[0];
+    const bvKey = encodeURIComponent(bv);
+
+    const dateTag = earliestDate
+      ? `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#E6F1FB;color:#0C447C;font-weight:600;border:1px solid #85B7EB">📅 ${fmtDate(earliestDate)}</span>`
+      : `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:var(--bg2);color:var(--text3);border:1px solid var(--border2)">Chưa có ngày</span>`;
+    const slTag = `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#F0F4FF;color:#2C4A8A;font-weight:600;border:1px solid #B0C4E8">${gRows.length} mặt hàng • SL: ${fmtN(gSL)} • ${fmtM(gTT)}</span>`;
+
+    html += `<tr class="grp-hdr" style="cursor:pointer" onclick="toggleGroup('rr','${bvKey}')">
+      <td colspan="7"><div class="grp-sticky">
+        <span id="toggle-icon-rr-${bvKey}" style="font-size:11px;margin-right:2px;transition:transform .2s;display:inline-block">▾</span>
+        ${bv}${dateTag}${slTag}
+      </div></td>
+    </tr>`;
+
+    gRows.forEach(r => {
+      const tt = r.slDuThau * r.giaDuThau;
+      // Badge ngày mở thầu
+      let dateBadge = '';
+      if (r.ngayDongThau) {
+        const d = r.daysUntil;
+        const color = d <= 3 ? '#C0392B' : d <= 7 ? '#856404' : '#0C447C';
+        const bg    = d <= 3 ? '#FEECEC' : d <= 7 ? '#FFF3CD' : '#E6F1FB';
+        const bdr   = d <= 3 ? '#F5ACAC' : d <= 7 ? '#FFDA6A' : '#85B7EB';
+        dateBadge = `<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;background:${bg};color:${color};border:1px solid ${bdr}">${fmtDate(r.ngayDongThau)}${d >= 0 ? ` (còn ${d}n)` : ' (đã qua)'}</span>`;
+      } else {
+        dateBadge = `<span style="font-size:10px;color:var(--text3)">—</span>`;
+      }
+
+      html += `<tr data-tab="rr" data-grp="${bvKey}">
+        <td class="pin-mat" style="left:0;padding-left:25px">${r.matHang}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${fmtN(r.slDuThau)}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${r.giaDuThau ? fmtN(r.giaDuThau) : '—'}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${tt > 0 ? fmtM(tt) : '—'}</td>
+        <td class="center" style="border-left:2px solid var(--border2)">${dateBadge}</td>
+        <td style="font-size:11px;color:var(--text2);border-left:1px solid var(--border);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.congTy||'—'}</td>
+        <td style="font-size:11px;color:var(--text2);border-left:1px solid var(--border)">${r.nguoi||'—'}</td>
+      </tr>`;
+    });
+  });
+
+  document.getElementById('tbl-body-rr').innerHTML = html;
+}
+
 // ── TOOLTIP ──
 const tipEl = document.getElementById('tip');
 function showTip(e, idx) {
@@ -1398,9 +1653,9 @@ function moveTip(e) {
 // ── CLEAR CACHE ──
 function clearCache() {
   if (!confirm('Xóa dữ liệu đã lưu?')) return;
-  ['thau_hcm_data','thau_hcm_label','thau_tinh_data','thau_tinh_label','thau_qg_data','thau_qg_label','thau_data','thau_label'].forEach(k => localStorage.removeItem(k));
-  allDataHCM = []; allDataTinh = []; allDataQG = [];
-  ['hcm','tinh','qg'].forEach(t => {
+  ['thau_hcm_data','thau_hcm_label','thau_tinh_data','thau_tinh_label','thau_qg_data','thau_qg_label','thau_rr_data','thau_rr_label','thau_data','thau_label'].forEach(k => localStorage.removeItem(k));
+  allDataHCM = []; allDataTinh = []; allDataQG = []; allDataRR = [];
+  ['hcm','tinh','qg','rr'].forEach(t => {
     document.getElementById('update-time-' + t).textContent = '📂 Chưa tải dữ liệu';
     document.getElementById('stats-row-' + t).innerHTML = '';
     document.getElementById('tbl-body-' + t).innerHTML = '';
@@ -1454,6 +1709,14 @@ if ('serviceWorker' in navigator) {
       renderQG();
       loaded = true;
     }
+    const savedRR = localStorage.getItem('thau_rr_data');
+    const labelRR = localStorage.getItem('thau_rr_label');
+    if (savedRR) {
+      allDataRR = JSON.parse(savedRR);
+      document.getElementById('update-time-rr').textContent = (labelRR || 'Dữ liệu đã lưu') + ' 💾';
+      renderRR();
+      loaded = true;
+    }
     // Legacy: thử load từ key cũ nếu chưa có key mới
     if (!savedHCM) {
       const old = localStorage.getItem('thau_data');
@@ -1471,7 +1734,7 @@ if ('serviceWorker' in navigator) {
   if (!loaded) {
     document.getElementById('update-time-hcm').textContent = '📂 Chưa tải dữ liệu';
     document.getElementById('update-time-hcm').style.display = '';
-    ['hcm','tinh','qg'].forEach(t => {
+    ['hcm','tinh','qg','rr'].forEach(t => {
       document.getElementById('stats-row-' + t).innerHTML = `
         <div class="stat" style="grid-column:1/-1;text-align:center;padding:1.5rem">
           <div class="stat-val" style="font-size:15px;color:var(--text2)">📂 Nhấn <strong>Load Excel</strong> để xem dữ liệu</div>
