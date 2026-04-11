@@ -592,8 +592,8 @@ function renderTable(rows) {
       <th style="text-align:right;min-width:48px;border-left:1px solid var(--border2)">Còn lại</th>
       <th style="text-align:right;min-width:70px;border-left:2px solid var(--border2)">Đơn giá</th>
       <th style="text-align:right;min-width:78px;border-left:1px solid var(--border2)">GT HĐ</th>
-      <th style="text-align:right;min-width:82px;border-left:1px solid var(--border2)">GT Thực hiện</th>
-      <th style="text-align:center;min-width:120px;border-left:2px solid var(--border2)">Hết hạn → Ngày ký</th>
+      <th style="text-align:right;min-width:82px;border-left:1px solid var(--border2)">Thực hiện</th>
+      <th style="text-align:center;min-width:95px;border-left:2px solid var(--border2)">Ngày</th>
     </tr>`;
 
   // Group by BV
@@ -726,7 +726,7 @@ function renderTable(rows) {
         <td class="num" style="border-left:2px solid var(--border2)">${fmtN(r.donGia)}</td>
         <td class="num" style="border-left:1px solid var(--border)">${fmtM(r.giaTriHD)}</td>
         <td class="num" style="color:#1D9E75;border-left:1px solid var(--border)">${fmtM(r.giaTriThucHien)}</td>
-        <td class="center" style="border-left:2px solid var(--border2);min-width:120px">
+        <td class="center" style="border-left:2px solid var(--border2);min-width:95px">
           <div style="display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.4">
             <span style="color:${wl==='red'||wl==='expired'?'#C0392B':wl==='yellow'?'#856404':'var(--text2)'};font-weight:${wl==='red'||wl==='expired'?'600':'400'};font-size:12px">${fmtDate(r.ngayKetThuc)}</span>
             <span style="font-size:9px;color:var(--text3)">ký: ${fmtDate(r.ngayKy)}</span>
