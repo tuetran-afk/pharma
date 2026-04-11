@@ -1539,16 +1539,15 @@ function renderRR() {
       <th style="text-align:right;min-width:80px;border-left:1px solid var(--border2)">SL dự thầu</th>
       <th style="text-align:right;min-width:80px;border-left:1px solid var(--border2)">Giá dự thầu</th>
       <th style="text-align:right;min-width:90px;border-left:1px solid var(--border2)">Thành tiền</th>
-      <th style="text-align:center;min-width:110px;border-left:2px solid var(--border2)">Ngày mở thầu</th>
-      <th style="min-width:80px;border-left:1px solid var(--border2)">Công ty</th>
-      <th style="min-width:70px;border-left:1px solid var(--border2)">Người làm</th>
+      <th style="text-align:center;min-width:95px;border-left:2px solid var(--border2)">Ngày mở thầu</th>
+      <th style="text-align:center;min-width:75px;border-left:1px solid var(--border2)">Số ngày</th>
     </tr>`;
 
   tipCache = [];
   let html = '';
 
   if (!Object.keys(grouped).length) {
-    html = `<tr><td colspan="7" class="no-data">📭 Không có dữ liệu phù hợp</td></tr>`;
+    html = `<tr><td colspan="6" class="no-data">📭 Không có dữ liệu phù hợp</td></tr>`;
     document.getElementById('tbl-body-rr').innerHTML = html;
     return;
   }
@@ -1558,36 +1557,36 @@ function renderRR() {
 
   Object.keys(grouped).sort((a,b) => a.localeCompare(b,'vi')).forEach(bv => {
     const gRows = grouped[bv];
-    const gSL = gRows.reduce((s,r) => s + r.slDuThau, 0);
-    const gTT = gRows.reduce((s,r) => s + r.slDuThau * r.giaDuThau, 0);
-    const hasDate = gRows.some(r => r.ngayDongThau);
     const earliestDate = gRows.map(r => r.ngayDongThau).filter(Boolean).sort()[0];
     const bvKey = encodeURIComponent(bv);
 
     const dateTag = earliestDate
       ? `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#E6F1FB;color:#0C447C;font-weight:600;border:1px solid #85B7EB">📅 ${fmtDate(earliestDate)}</span>`
       : `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:var(--bg2);color:var(--text3);border:1px solid var(--border2)">Chưa có ngày</span>`;
-    const slTag = `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#F0F4FF;color:#2C4A8A;font-weight:600;border:1px solid #B0C4E8">${gRows.length} mặt hàng • SL: ${fmtN(gSL)} • ${fmtM(gTT)}</span>`;
+    const mhTag = `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#F0F4FF;color:#2C4A8A;font-weight:600;border:1px solid #B0C4E8">${gRows.length} mặt hàng</span>`;
 
     html += `<tr class="grp-hdr" style="cursor:pointer" onclick="toggleGroup('rr','${bvKey}')">
-      <td colspan="7"><div class="grp-sticky">
+      <td colspan="6"><div class="grp-sticky">
         <span id="toggle-icon-rr-${bvKey}" style="font-size:11px;margin-right:2px;transition:transform .2s;display:inline-block">▾</span>
-        ${bv}${dateTag}${slTag}
+        ${bv}${dateTag}${mhTag}
       </div></td>
     </tr>`;
 
     gRows.forEach(r => {
       const tt = r.slDuThau * r.giaDuThau;
-      // Badge ngày mở thầu
-      let dateBadge = '';
-      if (r.ngayDongThau) {
-        const d = r.daysUntil;
-        const color = d <= 3 ? '#C0392B' : d <= 7 ? '#856404' : '#0C447C';
-        const bg    = d <= 3 ? '#FEECEC' : d <= 7 ? '#FFF3CD' : '#E6F1FB';
-        const bdr   = d <= 3 ? '#F5ACAC' : d <= 7 ? '#FFDA6A' : '#85B7EB';
-        dateBadge = `<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;background:${bg};color:${color};border:1px solid ${bdr}">${fmtDate(r.ngayDongThau)}${d >= 0 ? ` (còn ${d}n)` : ' (đã qua)'}</span>`;
-      } else {
-        dateBadge = `<span style="font-size:10px;color:var(--text3)">—</span>`;
+      const d = r.daysUntil;
+
+      // Cột ngày mở thầu — chỉ hiển thị ngày
+      const dateCell = r.ngayDongThau
+        ? `<span style="font-size:12px">${fmtDate(r.ngayDongThau)}</span>`
+        : `<span style="color:var(--text3)">—</span>`;
+
+      // Cột số ngày — đếm ngược/đếm xuôi với màu
+      let daysCell = '<span style="color:var(--text3)">—</span>';
+      if (d != null) {
+        const color = d < 0 ? 'var(--text3)' : d <= 3 ? '#C0392B' : d <= 7 ? '#856404' : '#0C447C';
+        const label = d < 0 ? `${Math.abs(d)}n trước` : d === 0 ? 'Hôm nay' : `còn ${d}n`;
+        daysCell = `<span style="font-size:11px;font-weight:600;color:${color}">${label}</span>`;
       }
 
       html += `<tr data-tab="rr" data-grp="${bvKey}">
@@ -1595,9 +1594,8 @@ function renderRR() {
         <td class="num" style="border-left:1px solid var(--border)">${fmtN(r.slDuThau)}</td>
         <td class="num" style="border-left:1px solid var(--border)">${r.giaDuThau ? fmtN(r.giaDuThau) : '—'}</td>
         <td class="num" style="border-left:1px solid var(--border)">${tt > 0 ? fmtM(tt) : '—'}</td>
-        <td class="center" style="border-left:2px solid var(--border2)">${dateBadge}</td>
-        <td style="font-size:11px;color:var(--text2);border-left:1px solid var(--border);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.congTy||'—'}</td>
-        <td style="font-size:11px;color:var(--text2);border-left:1px solid var(--border)">${r.nguoi||'—'}</td>
+        <td class="center" style="border-left:2px solid var(--border2)">${dateCell}</td>
+        <td class="center" style="border-left:1px solid var(--border)">${daysCell}</td>
       </tr>`;
     });
   });
