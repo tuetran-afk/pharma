@@ -1,1 +1,771 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Theo dõi Gói Thầu</title>
 
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#378ADD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c2a44" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gói Thầu">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Theo dõi tiến độ HSDT - Dashboard biểu đồ Gantt">
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Apple Touch Icons (inline SVG as data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='38' fill='%23378ADD'/%3E%3Crect x='24' y='60' width='100' height='12' rx='6' fill='white' opacity='0.9'/%3E%3Crect x='24' y='84' width='144' height='12' rx='6' fill='white'/%3E%3Crect x='24' y='108' width='80' height='12' rx='6' fill='%23EF9F27'/%3E%3Crect x='24' y='132' width='120' height='12' rx='6' fill='%231D9E75'/%3E%3C/svg%3E">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg: #ffffff;
+  --bg2: #f4f5f7; 
+  --bg-grp: #fafafa; 
+  --bg3: #eeedea;
+  --text: #222222; 
+  --text2: #666666; 
+  --text3: #999999;
+  --border: #e8e8e8; 
+  --border2: #d6d6d6;
+  --r: 6px;
+  --rl: 10px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1e1e1c;--bg2:#2a2a28;--bg-grp:#242424;--bg3:#333330;
+  --text:#f0efe8;--text2:#aaa;--text3:#555;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.16)
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg3);color:var(--text);
+  min-height:100vh;
+  padding-top:var(--safe-top);
+  padding-left:var(--safe-left);
+  padding-right:var(--safe-right);
+} 
+.page{max-width:1300px;margin:0 auto;padding:1.5rem;display:flex;flex-direction:column;}
+
+/* PWA Install Banner */
+#install-banner {
+  display: none;
+  position: fixed;
+  bottom: calc(1rem + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--rl);
+  padding: 12px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  max-width: calc(100vw - 2rem);
+}
+#install-banner.visible { display: flex; }
+#install-banner .install-icon { font-size: 22px; flex-shrink: 0; }
+#install-banner .install-text { flex: 1; min-width: 0; }
+#install-banner .install-text strong { display: block; font-size: 13px; }
+#install-banner .install-text span { font-size: 11px; color: var(--text2); }
+#install-banner .btn-install { background: #378ADD; color: #fff; border-color: #1a65b5; flex-shrink: 0; }
+#install-banner .btn-install:hover { background: #1a65b5; }
+#install-banner .btn-dismiss { flex-shrink: 0; }
+
+/* Offline indicator */
+#offline-bar {
+  display: none;
+  background: #856404;
+  color: #fff;
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+#offline-bar.show { display: block; }
+
+h1{font-size:20px;font-weight:500;margin-bottom:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cloud-status{font-size:11px;padding:3px 8px;border-radius:12px;background:#eaf3de;color:#27500a;font-weight:normal;border:1px solid #97c459;}
+.update-time{font-size:12px;padding:3px 10px;border-radius:12px;background:var(--bg);color:var(--text2);font-weight:normal;border:1px solid var(--border2);margin-left:auto;}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;}
+.stat{background:var(--bg);border-radius:var(--r);border:1px solid var(--border);padding:.75rem 1rem}
+.stat-label{font-size:12px;color:var(--text2);margin-bottom:4px}
+.stat-val{font-size:22px;font-weight:500}
+.card{background:var(--bg);border-radius:var(--rl);border:1px solid var(--border);padding:1.25rem;margin-bottom:1rem;}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto}
+.toolbar .spacer{flex:1;min-width:12px;flex-shrink:0}
+select,input{font-size:12px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);font-family:inherit;outline:none;min-width:0;flex-shrink:1}
+select:focus,input:focus{border-color:#378ADD;box-shadow:0 0 0 2px rgba(55,138,221,.15)}
+.btn{font-size:12px;padding:6px 13px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .12s;font-weight:500;}
+.btn:hover{background:var(--bg2)}
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
+.btn-blue{background:#E6F1FB;color:#0C447C;border-color:#85B7EB}
+.btn-amber{background:#FAEEDA;color:#633806;border-color:#EF9F27}
+.btn-pink{background:#FBEAF0;color:#72243E;border-color:#ED93B1}
+.btn-green{background:#E4F5EE;color:#0D4D30;border-color:#4cb882}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text2);margin-top:.75rem;justify-content:flex-end;}
+.ld{display:flex;align-items:center;gap:5px}
+.lbox{width:12px;height:12px;border-radius:2px}
+
+.year-nav{display:flex;align-items:center;gap:8px}
+.ynbtn{font-size:16px;width:24px;height:24px;border-radius:50%;border:1px solid var(--border2);background:var(--bg);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
+.ynbtn:hover{background:var(--bg2)}
+.ylabel{font-size:13px;font-weight:600;min-width:44px;text-align:center}
+
+.gantt-wrap{
+  max-height:65vh;
+  overflow:auto;
+  border-radius:var(--rl);
+  scrollbar-width:thin;
+  scrollbar-color:#bbb var(--bg2);
+  -webkit-overflow-scrolling:touch;
+}
+.gantt-wrap::-webkit-scrollbar{width:10px;height:10px;}
+.gantt-wrap::-webkit-scrollbar-track{background:var(--bg2);border:1px solid var(--border);}
+.gantt-wrap::-webkit-scrollbar-thumb{background:#bbb;border-radius:5px;}
+.gantt-wrap::-webkit-scrollbar-thumb:hover{background:#999;}
+
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:1100px;font-size:11px;}
+th,td{border-bottom:1px solid var(--border);}
+thead th{position:sticky;background:var(--bg2);color:var(--text2);font-weight:600;z-index:10;padding:0;}
+.th-year{top:0;height:30px;border-bottom:none;}
+.th-month{top:30px;height:26px;border-left:1px solid var(--border);font-size:10px;}
+th.mc{text-align:center;min-width:48px;width:48px;max-width:48px;}
+th.mc.cur{background:#E6F1FB;color:#0C447C}
+@media(prefers-color-scheme:dark){th.mc.cur{background:#0c2a44;color:#85B7EB}}
+
+.pin2{position:sticky;left:0;z-index:5;background:var(--bg);width:280px;min-width:280px;max-width:280px;text-align:left;padding:6px 10px 6px 20px;color:var(--text);}
+.pin2::after{content:'';position:absolute;right:-5px;top:0;bottom:0;width:5px;background:linear-gradient(to right,rgba(0,0,0,0.05),transparent);pointer-events:none;}
+thead th.pin2{z-index:15;top:0;height:56px;background:var(--bg2);color:var(--text2);vertical-align:middle;border-bottom:1px solid var(--border);padding-left:20px;}
+
+.grp-hdr td{background:var(--bg-grp);font-weight:600;color:var(--text);padding:0;border-top:1px solid var(--border2);}
+.grp-sticky{position:sticky;left:0;display:inline-block;padding:6px 10px;z-index:6;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text2);}
+.grp-count{font-weight:normal;color:var(--text3);font-size:10px;margin-left:4px;}
+
+td.mc{padding:2px 3px;border-left:1px solid var(--border);width:48px;text-align:center;vertical-align:middle;}
+td.mc.cur{background:rgba(55,138,221,0.03);position:relative;}
+tbody tr:hover td{background:var(--bg-grp);}
+tbody tr:hover td.pin2{background:var(--bg-grp);}
+tbody tr.out-year td{opacity:0.38}
+tbody tr.expiring td.pin2{background:#FFF8E1!important;}
+tbody tr.expiring:hover td.pin2{background:#FFF0C0!important;}
+@media(prefers-color-scheme:dark){
+  tbody tr.expiring td.pin2{background:#3a2e00!important;}
+  tbody tr.expiring:hover td.pin2{background:#4a3a00!important;}
+}
+
+.cell-wrap{position:relative;height:14px;width:100%}
+.seg{position:absolute;top:2px;height:10px;border-radius:2px}
+.no-data{text-align:center;padding:3rem;color:var(--text3);font-size:12px}
+
+.tip{position:fixed;z-index:999;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:10px;font-size:11px;color:var(--text);pointer-events:none;opacity:0;transition:opacity .15s;box-shadow:0 6px 20px rgba(0,0,0,0.1);min-width:220px;max-width:320px}
+.tip.show{opacity:1}
+.tip-title{font-weight:600;margin-bottom:6px;font-size:12px;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:5px;line-height:1.4}
+.tip-note{font-size:10px;color:#D4537E;margin-bottom:6px;font-style:italic;line-height:1.4;background:var(--bg-grp);padding:4px 6px;border-radius:4px;}
+.tip-row{display:flex;justify-content:space-between;gap:16px;margin-bottom:3px}
+.tip-label{color:var(--text2)}
+.tip-val{font-weight:500;color:var(--text);text-align:right}
+.tip-bar{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+.toast{position:fixed;bottom:calc(1.5rem + var(--safe-bottom));right:1.5rem;background:var(--text);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:12px;opacity:0;transform:translateY(6px);transition:all .2s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:600px){
+  .page{padding:.75rem}
+  h1{font-size:15px;gap:6px}
+  .update-time{font-size:10px;padding:2px 7px}
+  .cloud-status{font-size:10px;padding:2px 6px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:.75rem}
+  .stat{padding:.6rem .75rem}
+  .stat-label{font-size:11px}
+  .stat-val{font-size:18px}
+  .card{padding:.75rem}
+  .toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .toolbar .spacer{display:none}
+  select,input{font-size:11px;padding:5px 8px;min-width:0;flex-shrink:0}
+  .btn{font-size:11px;padding:5px 10px;white-space:nowrap;flex-shrink:0}
+  .legend{gap:8px;font-size:10px;margin-top:.5rem}
+  .lbox{width:10px;height:10px}
+  .gantt-wrap{max-height:60vh;touch-action:pan-x pan-y}
+  .gantt-wrap::-webkit-scrollbar{width:4px;height:4px}
+  table{font-size:10px;min-width:0}
+  .pin2{width:160px;min-width:160px;max-width:160px;padding:4px 8px;font-size:10px}
+  thead th.pin2{height:44px}
+  .th-year{height:24px}
+  .th-month{top:24px;height:20px;font-size:9px}
+  th.mc{min-width:32px;width:32px;max-width:32px}
+  td.mc{width:32px;padding:2px 1px}
+  .cell-wrap{height:12px}
+  .seg{height:8px;top:2px}
+  .grp-sticky{padding:5px 8px;font-size:11px}
+  .tip{min-width:180px;max-width:260px;font-size:10px;padding:8px}
+  .tip-title{font-size:11px}
+  #install-banner { bottom: calc(0.75rem + var(--safe-bottom)); }
+}
+</style>
+</head>
+<body>
+
+<!-- Offline bar -->
+<div id="offline-bar">⚠ Bạn đang offline — dữ liệu hiển thị từ bộ nhớ cục bộ</div>
+
+<div class="page">
+  <h1>
+    Theo dõi gói thầu 
+    <span class="cloud-status" id="cloud-status">Chế độ Offline</span>
+    <span class="update-time" id="update-time">⏳ Chưa tải dữ liệu</span>
+  </h1>
+  <div class="stats" id="stats-row"></div>
+  <div class="card" style="margin-bottom:0.5rem;">
+    <div class="toolbar">
+      <select id="sel-bv" onchange="render()"></select>
+      <select id="sel-status" onchange="render()">
+        <option value="dang_hd">-- Đang hoạt động --</option>
+        <option value="" selected>Tất cả (kể cả đã xong)</option>
+        <option value="mo">🔵 Chờ mở thầu</option>
+        <option value="cho">🟡 Chờ kết quả</option>
+        <option value="th">🟢 Đang thực hiện HĐ</option>
+        <option value="canh_bao">⏳ Sắp hết hạn (≤60 ngày)</option>
+        <option value="xong">⚫ Đã hoàn thành</option>
+        <option value="chua">⬜ Chưa có thông tin</option>
+      </select>
+      <input type="text" id="search-gt" placeholder="🔍 Tìm tên gói thầu..." oninput="render()">
+      <span class="spacer"></span>
+      <label class="btn" style="cursor:pointer">📂 Load Excel<input type="file" id="file-in" accept=".xlsx,.xls" style="display:none"></label>
+      <button class="btn btn-pink" onclick="exportImg()">🖼 Xuất Ảnh</button>
+      <button class="btn btn-blue" onclick="syncFromGoogle()" id="btn-sync-down">☁ Tải Cloud</button>
+      <button class="btn btn-blue" onclick="syncToGoogle()" id="btn-sync-up">☁ Lưu Cloud</button>
+      <button class="btn btn-green" id="btn-install" onclick="installPWA()" style="display:none">📲 Cài App</button>
+    </div>
+    <div class="legend">
+      <span class="ld"><span class="lbox" style="background:#378ADD"></span>Mở thầu</span>
+      <span class="ld"><span class="lbox" style="background:#1D9E75"></span>Đối chiếu</span>
+      <span class="ld"><span class="lbox" style="background:#EF9F27"></span>Ra QĐTT</span>
+      <span class="ld"><span class="lbox" style="background:#D4537E"></span>Thực hiện HĐ</span>
+    </div>
+  </div>
+  
+  <div class="card" style="padding:0;border:none;background:transparent;">
+    <div class="gantt-wrap" id="gantt-wrap">
+      <table><thead id="gthead"></thead><tbody id="gtbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- Install banner (mobile) -->
+<div id="install-banner">
+  <span class="install-icon">📲</span>
+  <div class="install-text">
+    <strong>Cài app Gói Thầu</strong>
+    <span>Dùng offline, không cần trình duyệt</span>
+  </div>
+  <button class="btn btn-install" onclick="installPWA()">Cài đặt</button>
+  <button class="btn btn-dismiss" onclick="dismissBanner()">✕</button>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="tip" id="tip"></div>
+
+<script>
+// ==========================================
+// PWA SETUP
+// ==========================================
+let deferredPrompt = null;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install button in toolbar
+  document.getElementById('btn-install').style.display = '';
+  // Show install banner on mobile after 3s
+  if (window.innerWidth <= 600) {
+    setTimeout(() => {
+      const banner = document.getElementById('install-banner');
+      if (deferredPrompt) banner.classList.add('visible');
+    }, 3000);
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  document.getElementById('btn-install').style.display = 'none';
+  document.getElementById('install-banner').classList.remove('visible');
+  toast('✅ Đã cài đặt app thành công!');
+});
+
+function installPWA() {
+  if (!deferredPrompt) {
+    toast('App đã được cài hoặc trình duyệt không hỗ trợ');
+    return;
+  }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(choice => {
+    if (choice.outcome === 'accepted') toast('Đang cài đặt...');
+    deferredPrompt = null;
+    document.getElementById('btn-install').style.display = 'none';
+    document.getElementById('install-banner').classList.remove('visible');
+  });
+}
+
+function dismissBanner() {
+  document.getElementById('install-banner').classList.remove('visible');
+  try { sessionStorage.setItem('banner_dismissed', '1'); } catch(e){}
+}
+
+// Online/Offline detection
+window.addEventListener('online',  () => { document.getElementById('offline-bar').classList.remove('show'); toast('🟢 Đã kết nối mạng'); });
+window.addEventListener('offline', () => { document.getElementById('offline-bar').classList.add('show'); toast('🔴 Mất kết nối mạng'); });
+if (!navigator.onLine) document.getElementById('offline-bar').classList.add('show');
+
+// ==========================================
+// APP LOGIC (giữ nguyên từ bản gốc)
+// ==========================================
+const SKEY = 'gantt_thau_v4_viewer';
+const SKEY_TIME = 'gantt_thau_time';
+const MN = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
+const td = new Date();
+let viewYear = td.getFullYear(), data = [];
+
+const GOOGLE_API_URL = 'https://script.google.com/macros/s/AKfycbwPQju3uLD06EtGtdq5xpqOFeAS_qQsXzgXZt2iyNkMhwiLtdyv30gKekFJ5eiQkK_k/exec'; 
+
+function updateCloudStatus(msg, isErr = false) {
+  const el = document.getElementById('cloud-status');
+  el.textContent = msg;
+  el.style.background = isErr ? '#FCEBEB' : '#EAF3DE';
+  el.style.color = isErr ? '#791F1F' : '#27500A';
+  el.style.borderColor = isErr ? '#F09595' : '#97C459';
+}
+
+function updateTimeStamp() {
+  const now = new Date();
+  const timeStr = `Cập nhật: ${now.toLocaleTimeString('vi-VN')} - ${now.toLocaleDateString('vi-VN')}`;
+  document.getElementById('update-time').textContent = timeStr;
+  try { localStorage.setItem(SKEY_TIME, timeStr); } catch(e){}
+}
+
+async function syncFromGoogle() {
+  if(GOOGLE_API_URL.includes('DÁN_LINK')) {
+    toast('Bạn chưa dán link Web App vào code!'); return;
+  }
+  if(!navigator.onLine) { toast('Không có mạng! Đang dùng dữ liệu cục bộ.'); return; }
+  const pass = prompt("Nhập mật khẩu để tải dữ liệu:");
+  if (pass === null) return; 
+  const btn = document.getElementById('btn-sync-down');
+  btn.textContent = 'Đang tải...'; btn.disabled = true;
+  updateCloudStatus('Đang xác thực...');
+  try {
+    const response = await fetch(`${GOOGLE_API_URL}?pass=${encodeURIComponent(pass)}`);
+    const cloudData = await response.json();
+    if(cloudData.status === 'error') {
+      toast('Lỗi: ' + cloudData.message);
+      updateCloudStatus('Sai mật khẩu', true);
+      return;
+    }
+    if(cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
+      data = cloudData;
+      saveData(); render(); updateTimeStamp();
+      toast(`Đã tải ${data.length} gói thầu từ Cloud`);
+      updateCloudStatus('Đã đồng bộ');
+    } else {
+      toast('Cloud hiện đang trống!');
+      updateCloudStatus('Cloud trống');
+    }
+  } catch (error) {
+    toast('Lỗi kết nối hoặc sai mật khẩu!');
+    updateCloudStatus('Lỗi mạng', true);
+  } finally {
+    btn.textContent = '☁ Tải Cloud'; btn.disabled = false;
+  }
+}
+
+async function syncToGoogle() {
+  if(GOOGLE_API_URL.includes('DÁN_LINK')) {
+    toast('Bạn chưa dán link Web App vào code!'); return;
+  }
+  if(!navigator.onLine) { toast('Không có mạng! Không thể lưu lên Cloud.'); return; }
+  const pass = prompt("Nhập mật khẩu để lưu dữ liệu:");
+  if (pass === null) return;
+  const btn = document.getElementById('btn-sync-up');
+  btn.textContent = 'Đang lưu...'; btn.disabled = true;
+  updateCloudStatus('Đang xác thực...');
+  try {
+    const response = await fetch(`${GOOGLE_API_URL}?pass=${encodeURIComponent(pass)}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    });
+    const result = await response.json();
+    if(result.status === 'success') {
+      toast('Đã ghi đè dữ liệu lên Google Sheets!');
+      updateCloudStatus('Đã sao lưu lên Cloud');
+    } else {
+      toast('Lỗi: ' + result.message);
+      updateCloudStatus('Lỗi mật khẩu', true);
+      return;
+    }
+  } catch (error) {
+    toast('Lỗi kết nối. Chưa đẩy được lên cloud!');
+    updateCloudStatus('Chưa lưu Cloud', true);
+  } finally {
+    btn.textContent = '☁ Lưu Cloud'; btn.disabled = false;
+  }
+}
+
+function loadData(){
+  try{
+    const s = localStorage.getItem(SKEY); if(s) data = JSON.parse(s);
+    const t = localStorage.getItem(SKEY_TIME); if(t) document.getElementById('update-time').textContent = t;
+  }catch(e){}
+}
+function saveData(){
+  try{localStorage.setItem(SKEY,JSON.stringify(data));}catch(e){}
+  updateCloudStatus('Chưa đồng bộ thay đổi', true);
+}
+function filterStatus(st){
+  const sel=document.getElementById('sel-status');
+  sel.value = sel.value===st ? '' : st;
+  render();
+}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+function pD(s) {
+  if (!s || s === '0' || s === 0) return null;
+  let str = String(s).trim();
+  if (str === '0' || str === '') return null;
+  let m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  return null;
+}
+
+function kqEnd(row){const kq=pD(row.kq);return kq&&row.th?new Date(+kq+row.th*86400000):null;}
+function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+function changeYear(d){viewYear+=d;render();}
+
+function refreshBV(){
+  const sel=document.getElementById('sel-bv'), cur=sel.value;
+  const bvs=[...new Set(data.map(r=>r.bv))].sort((a,b)=>a.localeCompare(b,'vi'));
+  sel.innerHTML='<option value="">-- Tất cả Chủ đầu tư --</option>';
+  bvs.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;sel.appendChild(o);});
+  if(bvs.includes(cur)) sel.value=cur;
+}
+const isMobile=()=>window.innerWidth<=600;
+
+function getStatus(row){
+  const mo=pD(row.mo), kq=pD(row.kq), thE=kqEnd(row);
+  const now=new Date(); now.setHours(0,0,0,0);
+  if(!mo && !kq) return 'chua';
+  if(mo && !kq && mo >= now) return 'mo';
+  if(mo && mo < now && !kq) return 'cho';
+  if(kq && thE && thE >= now) return 'th';
+  if(kq && (!thE || thE < now)) return 'xong';
+  return 'chua';
+}
+
+const STATUS_META = {
+  mo:   { label: 'Chờ mở thầu',       dot: '#378ADD', bg: '#E6F1FB', color: '#0C447C' },
+  cho:  { label: 'Chờ kết quả',        dot: '#EF9F27', bg: '#FAEEDA', color: '#633806' },
+  th:   { label: 'Đang thực hiện HĐ',  dot: '#1D9E75', bg: '#E4F5EE', color: '#0D4D30' },
+  xong: { label: 'Đã hoàn thành',      dot: '#999999', bg: '#F0F0F0', color: '#444444' },
+  chua: { label: 'Chưa có thông tin',  dot: '#cccccc', bg: '#F8F8F8', color: '#888888' },
+};
+
+function render(){
+  refreshBV();
+  const fBV=document.getElementById('sel-bv').value;
+  const fGT=(document.getElementById('search-gt').value||'').trim().toLowerCase();
+  const fST=document.getElementById('sel-status').value;
+  const yS=new Date(viewYear,0,1), yE=new Date(viewYear,11,31);
+  const now2=new Date(); now2.setHours(0,0,0,0);
+  
+  const matchStatus=(row)=>{
+    if(fST==='dang_hd'){ const s=getStatus(row); return s!=='xong' && s!=='chua'; }
+    if(!fST) return true;
+    if(fST==='canh_bao'){
+      const thE=kqEnd(row), s=getStatus(row);
+      if(!thE||s!=='th') return false;
+      const dl=Math.ceil((thE-now2)/86400000);
+      return dl>=0&&dl<=60;
+    }
+    return getStatus(row)===fST;
+  };
+
+  const inYear=data.filter(row=>{
+    if(fBV && row.bv!==fBV) return false;
+    if(fGT && !row.gt.toLowerCase().includes(fGT)) return false;
+    if(!matchStatus(row)) return false;
+    const dates=[pD(row.mo),pD(row.dc),pD(row.kq),kqEnd(row)].filter(Boolean);
+    if(!dates.length)return false;
+    return dates.reduce((a,b)=>a<b?a:b)<=yE && dates.reduce((a,b)=>a>b?a:b)>=yS;
+  });
+  const visible=data.filter(row=>{
+    if(fBV && row.bv!==fBV) return false;
+    if(fGT && !row.gt.toLowerCase().includes(fGT)) return false;
+    if(!matchStatus(row)) return false;
+    return true;
+  });
+  renderStats(inYear, visible);
+
+  const grouped={};
+  visible.forEach(row=>{if(!grouped[row.bv])grouped[row.bv]=[];grouped[row.bv].push(row);});
+
+  let hH=`
+    <tr>
+      <th class="pin2" rowspan="2">Mã TBMT / Gói thầu</th>
+      <th class="th-year" colspan="12">
+        <div class="year-nav" style="justify-content:center;height:100%;">
+          <button class="ynbtn" onclick="changeYear(-1)">&#8249;</button>
+          <span class="ylabel" style="font-size:13px;width:44px;display:inline-block;">${viewYear}</span>
+          <button class="ynbtn" onclick="changeYear(1)">&#8250;</button>
+        </div>
+      </th>
+    </tr>
+    <tr>
+  `;
+  for(let m=0;m<12;m++){
+    const isCur=viewYear===td.getFullYear()&&m===td.getMonth();
+    hH+=`<th class="th-month mc${isCur?' cur':''}">${MN[m]}</th>`;
+  }
+  hH+='</tr>';
+  document.getElementById('gthead').innerHTML=hH;
+
+  let bH='';
+  const tipCache=[];
+
+  Object.keys(grouped).sort((a,b)=>a.localeCompare(b,'vi')).forEach(bv=>{
+    bH+=`<tr class="grp-hdr"><td colspan="13"><div class="grp-sticky">${bv} <span class="grp-count">(${grouped[bv].length} gói)</span></div></td></tr>`;
+    grouped[bv].forEach((row)=>{
+      const mo=pD(row.mo),dc=pD(row.dc),kq=pD(row.kq),thE=kqEnd(row);
+      const rowDates=[mo,dc,kq,thE].filter(Boolean);
+      const inThisYear=rowDates.length&&rowDates.reduce((a,b)=>a<b?a:b)<=yE&&rowDates.reduce((a,b)=>a>b?a:b)>=yS;
+      const fmtVN=d=>d?d.toLocaleDateString('vi-VN'):'-';
+      const st=getStatus(row);
+      const stM=STATUS_META[st];
+      const now=new Date(); now.setHours(0,0,0,0);
+      const daysLeft=thE&&st==='th'?Math.ceil((thE-now)/86400000):null;
+      const isExpiring=daysLeft!==null&&daysLeft<=60&&daysLeft>=0;
+      const isUrgent=daysLeft!==null&&daysLeft<=14&&daysLeft>=0;
+      const tipIdx=tipCache.length;
+      tipCache.push({
+        gt:row.gt, bv:row.bv, note:row.note||'',
+        mo:fmtVN(mo), dc:fmtVN(dc), kq:fmtVN(kq), thE:thE?fmtVN(thE):'-', th:row.th||0,
+        st, stM, daysLeft
+      });
+
+      bH+=`<tr class="${inThisYear?'':'out-year'}${isExpiring?' expiring':''}" onmouseenter="showTip(event,${tipIdx})" onmouseleave="hideTip()" onmousemove="moveTip(event)">`;
+      let warnBadge='';
+      if(isUrgent)    warnBadge=`<span title="Còn ${daysLeft} ngày!" style="flex-shrink:0;font-size:10px;padding:0 5px;border-radius:8px;background:#FEECEC;color:#C0392B;font-weight:600;border:1px solid #F5ACAC">⚠ ${daysLeft}n</span>`;
+      else if(isExpiring) warnBadge=`<span title="Còn ${daysLeft} ngày" style="flex-shrink:0;font-size:10px;padding:0 5px;border-radius:8px;background:#FFF3CD;color:#856404;font-weight:600;border:1px solid #FFDA6A">⏳ ${daysLeft}n</span>`;
+
+      bH+=`<td class="pin2">
+        <div style="display:flex;align-items:center;gap:5px;overflow:hidden">
+          <span style="flex-shrink:0;width:7px;height:7px;border-radius:50%;background:${stM.dot};display:inline-block"></span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${row.gt}</span>
+          ${warnBadge}
+        </div>
+      </td>`;
+      
+      for(let m=0;m<12;m++){
+        const isCurCell=viewYear===td.getFullYear()&&m===td.getMonth();
+        const mS=new Date(viewYear,m,1),mE=new Date(viewYear,m+1,0,23,59,59),dm=daysInMonth(viewYear,m);
+        const mMs=mS.getTime(),mRange=mE.getTime()-mMs;
+        const frac =d=>{if(!d)return null; const t=d.getTime(); if(t<=mMs)return 0; if(t>=mE.getTime())return 1; return(t-mMs)/mRange;};
+        const fracE=d=>{if(!d)return null; const t=d.getTime(); if(t<mMs)return 0; if(t>mE.getTime())return 1; return(t-mMs)/mRange;};
+        let segs='';
+        if(thE&&kq){
+          const sS=kq<mS?mS:kq, sE=thE>mE?mE:thE;
+          if(sS<=mE&&sE>=mS){
+            const l=(frac(sS)*100).toFixed(1), r=((1-fracE(sE))*100).toFixed(1);
+            segs+=`<div class="seg" style="left:${l}%;right:${r}%;background:#D4537E;z-index:2"></div>`;
+          }
+        }
+        [[mo,'#378ADD'],[dc,'#1D9E75'],[kq,'#EF9F27']].forEach(([dt,col])=>{
+          if(dt&&dt>=mS&&dt<=mE){
+            const l=(frac(dt)*100).toFixed(1), w=Math.max(8,(1/dm*100)).toFixed(1);
+            segs+=`<div class="seg" style="left:${l}%;width:${w}%;background:${col};z-index:3"></div>`;
+          }
+        });
+        let todayStyle='';
+        if(isCurCell){
+          const todayFrac=((td.getDate()-0.5)/dm*100).toFixed(1);
+          todayStyle=` style="background:linear-gradient(to right,transparent calc(${todayFrac}% - 1px),rgba(210,50,50,0.35) calc(${todayFrac}% - 1px),rgba(210,50,50,0.35) calc(${todayFrac}% + 1px),transparent calc(${todayFrac}% + 1px))"`;
+        }
+        bH+=`<td class="mc${isCurCell?' cur':''}"${todayStyle}><div class="cell-wrap">${segs}</div></td>`;
+      }
+      bH+='</tr>';
+    });
+  });
+  if(!Object.keys(grouped).length) bH=`<tr><td colspan="13" class="no-data">Không có dữ liệu</td></tr>`;
+  document.getElementById('gtbody').innerHTML=bH;
+  window._tipCache=tipCache;
+}
+
+function renderStats(inYear, visibleAll){
+  const bvCount=new Set(visibleAll.map(r=>r.bv)).size;
+  const stCounts={mo:0,cho:0,th:0,xong:0,chua:0};
+  const now=new Date(); now.setHours(0,0,0,0);
+  let expiringCount=0;
+  visibleAll.forEach(r=>{
+    const s=getStatus(r);
+    if(stCounts[s]!==undefined)stCounts[s]++;
+    const thE=kqEnd(r);
+    if(thE&&s==='th'){
+      const dl=Math.ceil((thE-now)/86400000);
+      if(dl>=0&&dl<=60) expiringCount++;
+    }
+  });
+  const fST=document.getElementById('sel-status').value;
+  const fBV2=document.getElementById('sel-bv').value;
+  const isFiltered = !!(fBV2 || (document.getElementById('search-gt').value||'').trim());
+  document.getElementById('stats-row').innerHTML=`
+    <div class="stat">
+      <div class="stat-label">Tổng${isFiltered?' (đang lọc)':''}</div>
+      <div class="stat-val">${visibleAll.length}${isFiltered?`<span style="font-size:12px;color:var(--text3);font-weight:400"> / ${data.length}</span>`:''}</div>
+    </div>
+    <div class="stat"><div class="stat-label">Chủ đầu tư</div><div class="stat-val">${bvCount}</div></div>
+    <div class="stat" style="cursor:pointer;${fST==='mo'?'border-color:'+STATUS_META.mo.dot+';background:#F0F7FF':''}" onclick="filterStatus('mo')"><div class="stat-label" style="color:${STATUS_META.mo.color}">🔵 Chờ mở thầu</div><div class="stat-val">${stCounts.mo}</div></div>
+    <div class="stat" style="cursor:pointer;${fST==='cho'?'border-color:'+STATUS_META.cho.dot+';background:#FFFBF0':''}" onclick="filterStatus('cho')"><div class="stat-label" style="color:${STATUS_META.cho.color}">🟡 Chờ kết quả</div><div class="stat-val">${stCounts.cho}</div></div>
+    <div class="stat" style="cursor:pointer;${fST==='th'?'border-color:'+STATUS_META.th.dot+';background:#F0FBF5':''}" onclick="filterStatus('th')"><div class="stat-label" style="color:${STATUS_META.th.color}">🟢 Thực hiện HĐ</div><div class="stat-val">${stCounts.th}</div></div>
+    <div class="stat" style="cursor:pointer;${expiringCount?'border-color:#FFDA6A;background:#FFFBF0':''}${fST==='canh_bao'?';outline:2px solid #EF9F27':''}" onclick="filterStatus('canh_bao')">
+      <div class="stat-label" style="color:${expiringCount?'#856404':'var(--text2)'}">⏳ Sắp hết hạn (≤60n)</div>
+      <div class="stat-val" style="color:${expiringCount?'#C0392B':'var(--text)'}">${expiringCount}</div>
+    </div>`;
+}
+
+const tipEl=document.getElementById('tip');
+function showTip(e,idx){
+  const tipData=(window._tipCache||[])[idx];
+  if(!tipData)return;
+  tipEl.innerHTML=`
+    <div class="tip-title">${tipData.gt}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <span style="font-size:10px;color:var(--text2)">${tipData.bv}</span>
+      <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:${tipData.stM.bg};color:${tipData.stM.color};font-weight:500;flex-shrink:0">${tipData.stM.label}</span>
+    </div>
+    ${tipData.note ? `<div class="tip-note">📝 Ghi chú: ${tipData.note}</div>` : ''}
+    <div class="tip-row"><span class="tip-label"><span class="tip-bar" style="background:#378ADD"></span>Mở thầu</span><span class="tip-val">${tipData.mo}</span></div>
+    <div class="tip-row"><span class="tip-label"><span class="tip-bar" style="background:#1D9E75"></span>Đối chiếu</span><span class="tip-val">${tipData.dc||'-'}</span></div>
+    <div class="tip-row"><span class="tip-label"><span class="tip-bar" style="background:#EF9F27"></span>Ngày QĐTT</span><span class="tip-val">${tipData.kq}</span></div>
+    ${tipData.th ? `
+    <div class="tip-row"><span class="tip-label"><span class="tip-bar" style="background:#D4537E"></span>Ngày hết hạn</span><span class="tip-val">${tipData.thE}</span></div>
+    <div class="tip-row"><span class="tip-label">TG thực hiện</span><span class="tip-val">${tipData.th} ngày</span></div>
+    ${tipData.daysLeft!==null&&tipData.daysLeft<=60?`<div style="margin-top:6px;padding:4px 8px;border-radius:4px;background:${tipData.daysLeft<=14?'#FEECEC':'#FFF3CD'};color:${tipData.daysLeft<=14?'#C0392B':'#856404'};font-weight:600;font-size:11px;text-align:center">${tipData.daysLeft<=14?'⚠ Sắp hết hạn:':'⏳ Còn'} ${tipData.daysLeft} ngày</div>`:''}
+    ` : ''}
+  `;
+  tipEl.classList.add('show');
+  moveTip(e);
+}
+function moveTip(e){
+  const tw=tipEl.offsetWidth||260, th2=tipEl.offsetHeight||140;
+  let x=e.clientX+16, y=e.clientY+16;
+  if(x+tw>window.innerWidth-16) x=e.clientX-tw-16;
+  if(y+th2>window.innerHeight-16) y=e.clientY-th2-16;
+  tipEl.style.left=x+'px'; tipEl.style.top=y+'px';
+}
+function hideTip(){tipEl.classList.remove('show');}
+
+function excelSerialToYMD(serial){
+  const d = new Date(Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+}
+function fmtD(v){
+  if(v === null || v === undefined || v === '' || v === 0 || v === '0') return '';
+  if(typeof v === 'number' && v > 1) return excelSerialToYMD(v);
+  if(v instanceof Date){
+    return `${v.getUTCFullYear()}-${String(v.getUTCMonth()+1).padStart(2,'0')}-${String(v.getUTCDate()).padStart(2,'0')}`;
+  }
+  if(typeof v === 'string'){
+    const s = v.trim();
+    let m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    const num = Number(s);
+    if(!isNaN(num) && num > 1) return excelSerialToYMD(num);
+  }
+  return '';
+}
+
+document.getElementById('file-in').addEventListener('change',function(e){
+  const f=e.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try {
+      const wb=XLSX.read(ev.target.result,{type:'binary',cellDates:false});
+      const ws=wb.Sheets['info'];
+      if(!ws){ toast('Lỗi: File Excel không có sheet tên "info"!'); return; }
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+      if(!rows.length){toast('Sheet info trống');return;}
+      let n=0;
+      data = [];
+      rows.forEach(r=>{
+        const bv=String(r['Tên Chủ đầu tư']||'').trim();
+        const gt=String(r['Mã TBMT / Tên gói thầu']||'').trim();
+        if(!bv&&!gt)return;
+        data.push({
+          bv: bv||'(Chưa có tên)',
+          gt: gt||'(Chưa có tên gói)',
+          note: String(r['Ghi chú']||'').trim(),
+          mo: fmtD(r['Ngày mở thầu']),
+          dc: fmtD(r['Ngày đối chiếu']),
+          kq: fmtD(r['Ngày ra QĐTT']),
+          th: parseInt(r['Thời gian thực hiện (ngày)'])||0
+        });
+        n++;
+      });
+      saveData(); render(); updateTimeStamp();
+      toast(`Đã load ${n} gói thầu từ Excel`);
+    } catch(err) {
+      toast('Lỗi đọc file: ' + err.message);
+    }
+  };
+  reader.onerror=function(){ toast('Không đọc được file!'); };
+  reader.readAsBinaryString(f); e.target.value='';
+});
+
+function exportImg(){
+  toast('Đang xuất ảnh...');
+  const card = document.getElementById('gantt-wrap'); 
+  const tempTitle = document.createElement('div');
+  tempTitle.style.cssText = 'padding:15px;font-size:14px;font-weight:bold;color:var(--text);background:var(--bg2);border-bottom:1px solid var(--border);text-align:center;text-transform:uppercase;';
+  tempTitle.textContent = `TIẾN ĐỘ THỰC HIỆN GÓI THẦU - NĂM ${viewYear}`;
+  card.insertBefore(tempTitle, card.firstChild);
+  html2canvas(card,{scale:2,useCORS:true,logging:false,backgroundColor:getComputedStyle(document.body).backgroundColor||'#fff'}).then(canvas=>{
+    card.removeChild(tempTitle);
+    const a=document.createElement('a'); a.download=`gantt-thau-${viewYear}.png`; a.href=canvas.toDataURL('image/png'); a.click(); toast('Đã lưu ảnh PNG');
+  });
+}
+
+window.addEventListener('resize',render);
+document.getElementById('sel-bv').addEventListener('change',render);
+loadData(); render();
+</script>
+</body>
+</html>
