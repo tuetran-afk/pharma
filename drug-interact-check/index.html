@@ -12,94 +12,29 @@
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230b0f1a'/><text y='.9em' font-size='80' x='10'>💊</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 <script>
-// ── PWA: Inject manifest as blob ──────────────────────────
+// ── PWA: Manifest blob (hoạt động tốt với single HTML) ────
 (function() {
+  const iconSvg192 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="32" fill="%230b0f1a"/><text y="155" font-size="140" x="26">💊</text></svg>`;
+  const iconSvg512 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="80" fill="%230b0f1a"/><text y="420" font-size="380" x="65">💊</text></svg>`;
   const manifest = {
     name: "Tra Cứu Tương Tác Thuốc",
     short_name: "Tương Tác Thuốc",
     description: "Hệ thống kiểm tra tương tác thuốc lâm sàng",
-    start_url: "./",
+    start_url: location.href,
     display: "standalone",
     background_color: "#0b0f1a",
     theme_color: "#0b0f1a",
     orientation: "portrait-primary",
+    lang: "vi",
     icons: [
-      {
-        src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230b0f1a'/><text y='.85em' font-size='150' x='20'>💊</text></svg>",
-        sizes: "192x192",
-        type: "image/svg+xml",
-        purpose: "any maskable"
-      },
-      {
-        src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230b0f1a'/><text y='.85em' font-size='400' x='50'>💊</text></svg>",
-        sizes: "512x512",
-        type: "image/svg+xml",
-        purpose: "any maskable"
-      }
-    ],
-    categories: ["medical", "health"],
-    lang: "vi"
+      { src: "data:image/svg+xml," + iconSvg192, sizes: "192x192", type: "image/svg+xml" },
+      { src: "data:image/svg+xml," + iconSvg512, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+    ]
   };
-  const blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
-  const url  = URL.createObjectURL(blob);
-  const link = document.createElement('link');
-  link.rel   = 'manifest';
-  link.href  = url;
-  document.currentScript.closest('head').appendChild(link);
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const link = Object.assign(document.createElement('link'), { rel: 'manifest', href: URL.createObjectURL(blob) });
+  document.head.appendChild(link);
 })();
-
-// ── PWA: Service Worker (inline via blob) ─────────────────
-if ('serviceWorker' in navigator) {
-  const swCode = `
-const CACHE = 'tuong-tac-thuoc-v1';
-const PRECACHE = [
-  'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap'
-];
-
-self.addEventListener('install', e => {
-  self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE).catch(()=>{})));
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', e => {
-  const url = e.request.url;
-  // Always network-first for API (Google Apps Script)
-  if (url.includes('script.google.com')) {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-    return;
-  }
-  // Cache-first for fonts & static
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-      if (res.ok && (url.includes('fonts.') || url.includes('googleapis'))) {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-      }
-      return res;
-    }))
-  );
-});
-`;
-  const swBlob = new Blob([swCode], {type: 'application/javascript'});
-  const swUrl  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swUrl, {scope: './'}).catch(() => {});
-}
 </script>
 <style>
   :root {
@@ -929,23 +864,65 @@ function renderSkeletons(n = 3) {
     </div>`).join('');
 }
 
+const CACHE_KEY = 'ttt_data_cache';
+const CACHE_TS  = 'ttt_data_ts';
+const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 tiếng
+
 async function fetchData(retry = 2) {
   if (allData) return allData;
+
+  // Thử đọc cache localStorage trước
+  const ts = parseInt(localStorage.getItem(CACHE_TS) || '0');
+  const raw = localStorage.getItem(CACHE_KEY);
+  const cacheValid = raw && (Date.now() - ts < CACHE_TTL);
+
+  // Nếu cache còn hạn → dùng luôn, fetch ngầm để refresh
+  if (cacheValid) {
+    try { allData = JSON.parse(raw); } catch {}
+    if (allData?.length) {
+      // Refresh ngầm
+      fetch(API_URL).then(r => r.ok ? r.json() : null).then(json => {
+        if (!json) return;
+        const fresh = Array.isArray(json) ? json : (json.data || []);
+        if (fresh.length) {
+          allData = fresh;
+          localStorage.setItem(CACHE_KEY, JSON.stringify(fresh));
+          localStorage.setItem(CACHE_TS, Date.now().toString());
+        }
+      }).catch(() => {});
+      return allData;
+    }
+  }
+
+  // Fetch mạng với retry
   let lastErr;
   for (let i = 0; i <= retry; i++) {
     try {
       const res = await fetch(API_URL);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // Support both array and {data:[...]} format
       allData = Array.isArray(json) ? json : (json.data || []);
+      // Lưu cache
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(allData));
+        localStorage.setItem(CACHE_TS, Date.now().toString());
+      } catch {}
       return allData;
     } catch(err) {
       lastErr = err;
       if (i < retry) await new Promise(r => setTimeout(r, 800 * (i + 1)));
     }
   }
-  throw new Error('Không thể kết nối đến API. ' + (lastErr?.message || ''));
+
+  // Fallback: cache cũ dù hết hạn
+  if (raw) {
+    try {
+      allData = JSON.parse(raw);
+      if (allData?.length) return allData;
+    } catch {}
+  }
+
+  throw new Error('Không thể kết nối. ' + (lastErr?.message || ''));
 }
 
 async function search() {
@@ -1275,4 +1252,3 @@ function setupAutocomplete(inputId, wrapId, data) {
 </script>
 </body>
 </html>
-
