@@ -1,0 +1,15 @@
+{
+  "name": "Tra Cứu Tương Tác Thuốc",
+  "short_name": "Tương Tác Thuốc",
+  "description": "Hệ thống kiểm tra tương tác thuốc lâm sàng",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0f1a",
+  "theme_color": "#0b0f1a",
+  "orientation": "portrait-primary",
+  "lang": "vi",
+  "icons": [
+    { "src": "icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" },
+    { "src": "icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
