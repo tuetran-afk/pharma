@@ -1,1 +1,1278 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tra Cứu Tương Tác Thuốc</title>
+<meta name="description" content="Hệ thống kiểm tra tương tác thuốc lâm sàng — dữ liệu từ Hội Dược sỹ Bệnh viện Việt Nam">
+<meta name="theme-color" content="#0b0f1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tương Tác Thuốc">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230b0f1a'/><text y='.9em' font-size='80' x='10'>💊</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<script>
+// ── PWA: Inject manifest as blob ──────────────────────────
+(function() {
+  const manifest = {
+    name: "Tra Cứu Tương Tác Thuốc",
+    short_name: "Tương Tác Thuốc",
+    description: "Hệ thống kiểm tra tương tác thuốc lâm sàng",
+    start_url: "./",
+    display: "standalone",
+    background_color: "#0b0f1a",
+    theme_color: "#0b0f1a",
+    orientation: "portrait-primary",
+    icons: [
+      {
+        src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230b0f1a'/><text y='.85em' font-size='150' x='20'>💊</text></svg>",
+        sizes: "192x192",
+        type: "image/svg+xml",
+        purpose: "any maskable"
+      },
+      {
+        src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230b0f1a'/><text y='.85em' font-size='400' x='50'>💊</text></svg>",
+        sizes: "512x512",
+        type: "image/svg+xml",
+        purpose: "any maskable"
+      }
+    ],
+    categories: ["medical", "health"],
+    lang: "vi"
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement('link');
+  link.rel   = 'manifest';
+  link.href  = url;
+  document.currentScript.closest('head').appendChild(link);
+})();
+
+// ── PWA: Service Worker (inline via blob) ─────────────────
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'tuong-tac-thuoc-v1';
+const PRECACHE = [
+  'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap'
+];
+
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE).catch(()=>{})));
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  const url = e.request.url;
+  // Always network-first for API (Google Apps Script)
+  if (url.includes('script.google.com')) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // Cache-first for fonts & static
+  e.respondWith(
+    caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+      if (res.ok && (url.includes('fonts.') || url.includes('googleapis'))) {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+      }
+      return res;
+    }))
+  );
+});
+`;
+  const swBlob = new Blob([swCode], {type: 'application/javascript'});
+  const swUrl  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl, {scope: './'}).catch(() => {});
+}
+</script>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00c2ff;
+    --accent2: #00ffc8;
+    --danger: #ff4d6d;
+    --warning: #ffb830;
+    --caution: #ff7c2a;
+    --safe: #00e5a0;
+    --text: #e8edf5;
+    --muted: #7a8ba8;
+    --font: 'Be Vietnam Pro', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,194,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,194,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .logo-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(24px, 5vw, 38px);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+  }
+
+  .badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 12px;
+    background: rgba(0,194,255,0.1);
+    border: 1px solid rgba(0,194,255,0.25);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.3px;
+  }
+
+  /* Search box */
+  .search-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .search-wrap::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .search-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  @media (max-width: 560px) {
+    .search-row { grid-template-columns: 1fr; }
+  }
+
+  /* ── PWA Install Banner ────────────────────────── */
+  #installBanner {
+    display: none;
+    position: fixed;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: linear-gradient(135deg, #1a2640, #111827);
+    border: 1px solid rgba(0,194,255,0.3);
+    border-radius: 16px;
+    padding: 14px 18px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,194,255,0.1);
+    width: calc(100% - 32px);
+    max-width: 480px;
+    animation: slideUp 0.3s ease;
+  }
+
+  #installBanner.show { display: flex; align-items: center; gap: 12px; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  .install-icon { font-size: 28px; flex-shrink: 0; }
+
+  .install-text { flex: 1; min-width: 0; }
+  .install-text strong { display: block; font-size: 14px; color: var(--text); margin-bottom: 2px; }
+  .install-text span   { font-size: 12px; color: var(--muted); }
+
+  .install-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .btn-install {
+    padding: 8px 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0b0f1a;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+  .btn-install:hover { opacity: 0.88; }
+
+  .btn-dismiss {
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-dismiss:hover { border-color: var(--muted); color: var(--text); }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  input[type="text"], select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    appearance: none;
+  }
+
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,194,255,0.12);
+  }
+
+  input::placeholder { color: var(--muted); }
+
+  select option {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .btn-search {
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    border: none;
+    border-radius: 12px;
+    color: #0b0f1a;
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+
+  .btn-search:hover { opacity: 0.9; }
+  .btn-search:active { transform: scale(0.99); }
+  .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Spinner */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #0b0f1a;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .stat-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .stat-chip.total { background: rgba(0,194,255,0.08); border-color: rgba(0,194,255,0.25); color: var(--accent); }
+  .stat-chip.danger { background: rgba(255,77,109,0.08); border-color: rgba(255,77,109,0.25); color: var(--danger); }
+  .stat-chip.warning { background: rgba(255,184,48,0.08); border-color: rgba(255,184,48,0.25); color: var(--warning); }
+
+  /* Results */
+  .results { display: flex; flex-direction: column; gap: 28px; padding-top: 4px; }
+
+  /* Source footer outside collapse */
+  .card-source-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .card-source-footer .info-label {
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+
+  .card-source-footer .source-tag {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    animation: fadeUp 0.3s ease forwards;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card:nth-child(1) { animation-delay: 0.05s; }
+  .result-card:nth-child(2) { animation-delay: 0.1s; }
+  .result-card:nth-child(3) { animation-delay: 0.15s; }
+  .result-card:nth-child(4) { animation-delay: 0.2s; }
+  .result-card:nth-child(5) { animation-delay: 0.25s; }
+
+  .card-header {
+    padding: 14px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .drug-pair {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .drug-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible;
+  }
+
+  .card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+  }
+
+  .arrow-icon {
+    color: var(--muted);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .level-badge {
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .level-CCC { background: rgba(255,77,109,0.15); color: var(--danger); border: 1px solid rgba(255,77,109,0.3); }
+  .level-CCCD { background: rgba(255,124,42,0.15); color: var(--caution); border: 1px solid rgba(255,124,42,0.3); }
+  .level-TT { background: rgba(255,184,48,0.15); color: var(--warning); border: 1px solid rgba(255,184,48,0.3); }
+  .level-other { background: rgba(0,229,160,0.1); color: var(--safe); border: 1px solid rgba(0,229,160,0.25); }
+
+  @media (max-width: 700px) {
+    .card-body { grid-template-columns: 1fr; }
+  }
+
+  .info-block { display: flex; flex-direction: column; gap: 5px; }
+  .info-block.full { grid-column: 1 / -1; }
+
+  .info-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+  }
+
+  .info-value {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    opacity: 0.9;
+  }
+
+  .nhom-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(0,194,255,0.08);
+    border: 1px solid rgba(0,194,255,0.2);
+    color: var(--accent);
+  }
+
+  .xử-trí-block {
+    background: rgba(255,184,48,0.05);
+    border: 1px solid rgba(255,184,48,0.15);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .xử-trí-block .info-label { color: var(--warning); }
+
+  /* Empty / error state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* Source tag */
+  .source-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 3px 9px;
+    border-radius: 5px;
+    margin-top: 4px;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 6px 0;
+  }
+
+  /* highlight match */
+  mark {
+    background: rgba(0,194,255,0.25);
+    color: var(--accent);
+    padding: 0 2px;
+    border-radius: 3px;
+  }
+
+  /* Autocomplete */
+  .ac-wrap {
+    position: relative;
+  }
+
+  .ac-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0; right: 0;
+    background: #1a2640;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,194,255,0.1);
+    z-index: 999;
+    overflow: hidden;
+    max-height: 260px;
+    overflow-y: auto;
+    animation: dropIn 0.15s ease;
+  }
+
+  @keyframes dropIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .ac-dropdown::-webkit-scrollbar { width: 4px; }
+  .ac-dropdown::-webkit-scrollbar-track { background: transparent; }
+  .ac-dropdown::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .ac-item {
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.12s;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text);
+  }
+
+  .ac-item:last-child { border-bottom: none; }
+
+  .ac-item:hover, .ac-item.active {
+    background: rgba(0,194,255,0.12);
+    color: var(--accent);
+  }
+
+  .ac-item mark {
+    background: rgba(0,194,255,0.3);
+    color: var(--accent);
+    padding: 0 2px;
+    border-radius: 3px;
+    font-weight: 700;
+  }
+
+  .ac-pill {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-weight: 600;
+    margin-left: auto;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .ac-pill-ccc { background: rgba(255,77,109,0.15); color: var(--danger); }
+  .ac-pill-cccd { background: rgba(255,124,42,0.15); color: var(--caution); }
+  .ac-pill-tt { background: rgba(255,184,48,0.15); color: var(--warning); }
+
+  .ac-empty {
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .source-block {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  .source-block .info-label { color: var(--muted); }
+
+  /* Sort bar */
+  .sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .sort-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  .sort-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: var(--font);
+    transition: all 0.15s;
+  }
+
+  .sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sort-btn.active { background: rgba(0,194,255,0.12); border-color: var(--accent); color: var(--accent); }
+
+  /* Card header actions */
+  .card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .btn-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .btn-icon:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,194,255,0.08); }
+  .btn-icon.copied { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Collapse */
+  .card-body {
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
+    max-height: 1000px;
+    opacity: 1;
+  }
+
+  .card-body.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+  }
+
+  .toggle-icon {
+    transition: transform 0.25s ease;
+    display: inline-block;
+    font-style: normal;
+  }
+
+  .collapsed-indicator .toggle-icon { transform: rotate(-90deg); }
+
+  /* Loading skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 8px;
+    height: 16px;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  .skeleton-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 60px;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo-line">
+      <div class="logo-icon">💊</div>
+      <h1>Tra Cứu Tương Tác Thuốc</h1>
+    </div>
+    <p class="subtitle">Hệ thống kiểm tra tương tác thuốc lâm sàng</p>
+  </header>
+
+  <div class="search-wrap">
+    <div class="search-row">
+      <div class="field-group">
+        <label>🔍 Tên Thuốc 1</label>
+        <div class="ac-wrap" id="wrap1">
+          <input type="text" id="drug1" placeholder="Ví dụ: Aceclofenac, Warfarin…" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>🔍 Tên Thuốc 2 (tùy chọn)</label>
+        <div class="ac-wrap" id="wrap2">
+          <input type="text" id="drug2" placeholder="Ví dụ: Ketorolac, Aspirin…" autocomplete="off">
+        </div>
+      </div>
+    </div>
+    <div class="search-row">
+      <div class="field-group">
+        <label>⚠️ Mức độ tương tác</label>
+        <select id="level">
+          <option value="">— Tất cả mức độ —</option>
+          <option value="Chống chỉ định">Chống chỉ định</option>
+          <option value="Chống chỉ định có điều kiện">Chống chỉ định có điều kiện</option>
+          <option value="Thận trọng">Thận trọng</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>🧬 Nhóm tương tác</label>
+        <select id="nhom">
+          <option value="">— Tất cả nhóm —</option>
+          <option value="Dược lực học">Dược lực học</option>
+          <option value="Dược động học">Dược động học</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-search" id="btnSearch" onclick="search()">
+      <span id="btnText">🔎 Tra cứu tương tác</span>
+    </button>
+  </div>
+
+  <div id="statsBar" class="stats-bar" style="display:none"></div>
+  <div id="sortBar" class="sort-bar" style="display:none">
+    <span class="sort-label">Sắp xếp:</span>
+    <button class="sort-btn active" data-sort="severity" onclick="setSort('severity',this)">⚠️ Mức độ nghiêm trọng</button>
+    <button class="sort-btn" data-sort="default" onclick="setSort('default',this)">🔢 Mặc định</button>
+  </div>
+  <div id="results" class="results"></div>
+
+  <footer>Dữ liệu tra cứu từ cơ sở dữ liệu tương tác thuốc của Hội Dược sỹ Bệnh viện Việt Nam· Chỉ dùng cho mục đích tham khảo lâm sàng</footer>
+</div>
+
+<!-- PWA Install Banner -->
+<div id="installBanner">
+  <div class="install-icon">💊</div>
+  <div class="install-text">
+    <strong>Cài đặt ứng dụng</strong>
+    <span>Dùng offline, nhanh hơn trên màn hình chính</span>
+  </div>
+  <div class="install-actions">
+    <button class="btn-install" id="btnInstall">Cài đặt</button>
+    <button class="btn-dismiss" id="btnDismiss">✕</button>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbx82WBh-KxvMvuGAkDN07lsCJv3gyC059csLAm0Vn9rfe-vMcCMTWRMP6WGwwaKwPMtJw/exec';
+
+let allData = null;
+
+// Enter key support — bỏ qua khi dropdown đang mở
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const anyDropdown = document.querySelector('.ac-dropdown');
+    if (!anyDropdown) search();
+  }
+});
+
+function getLevelClass(level) {
+  if (!level) return 'other';
+  if (level.includes('Chống chỉ định có điều kiện')) return 'CCCD';
+  if (level.includes('Chống chỉ định')) return 'CCC';
+  if (level.includes('Thận trọng')) return 'TT';
+  return 'other';
+}
+
+function highlight(text, query) {
+  if (!query || !text) return text || '';
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return String(text).replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+}
+
+function renderCard(item, q1, q2) {
+  const t1 = item['Thuốc 1']?.value || '';
+  const t2 = item['Thuốc 2']?.value || '';
+  const level = item['Mức độ']?.value || '';
+  const nhom = item['Nhóm tương tác']?.value || '';
+  const cochef = item['Cơ chế']?.value || '';
+  const hq = item['Hậu quả']?.value || '';
+  const xt = item['Xử trí']?.value || '';
+  const src = item['Nguồn'] || '';
+  const lc = getLevelClass(level);
+  const uid = 'card_' + Math.random().toString(36).slice(2, 8);
+
+  return `
+  <div class="result-card" id="${uid}">
+    <div class="card-header" style="cursor:pointer" onclick="toggleCard('${uid}')">
+      <div class="drug-pair">
+        <span class="drug-name">${highlight(t1, q1)}</span>
+        <span class="arrow-icon">⇄</span>
+        <span class="drug-name">${highlight(t2, q2 || q1)}</span>
+      </div>
+      <div class="card-meta-row" onclick="event.stopPropagation()">
+        <span class="nhom-badge">🧬 ${nhom}</span>
+        <span class="level-badge level-${lc}">${level || 'Không xác định'}</span>
+        <button class="btn-icon" title="Sao chép thông tin" onclick="copyCard('${uid}','${escAttr(t1)}','${escAttr(t2)}','${escAttr(level)}','${escAttr(nhom)}','${escAttr(cochef)}','${escAttr(hq)}','${escAttr(xt)}','${escAttr(src)}')">📋</button>
+        <i class="toggle-icon" id="${uid}_icon" style="pointer-events:none">▾</i>
+      </div>
+    </div>
+    <div class="card-body" id="${uid}_body">
+      <div class="info-block full">
+        <span class="info-label">Cơ chế tương tác</span>
+        <span class="info-value">${cochef}</span>
+      </div>
+      <div class="info-block full">
+        <span class="info-label">Hậu quả</span>
+        <span class="info-value">${hq}</span>
+      </div>
+      <div class="info-block full">
+        <div class="xử-trí-block">
+          <span class="info-label">⚠️ Xử trí / Khuyến cáo</span>
+          <hr class="divider">
+          <span class="info-value">${xt.replace(/\n/g, '<br>')}</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-source-footer">
+      <span class="info-label">Nguồn:</span>
+      <span class="source-tag">${src.replace(/\n/g, '<br>')}</span>
+    </div>
+  </div>`;
+}
+
+function renderSkeletons(n = 3) {
+  return Array.from({length: n}, () => `
+    <div class="skeleton-card">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="skeleton" style="width:140px;height:20px"></div>
+        <div class="skeleton" style="width:20px"></div>
+        <div class="skeleton" style="width:140px;height:20px"></div>
+        <div class="skeleton" style="width:120px;height:24px;border-radius:8px;margin-left:auto"></div>
+      </div>
+      <div class="skeleton" style="width:100%;height:14px;margin-top:8px"></div>
+      <div class="skeleton" style="width:80%;height:14px"></div>
+      <div class="skeleton" style="width:60%;height:14px"></div>
+    </div>`).join('');
+}
+
+async function fetchData(retry = 2) {
+  if (allData) return allData;
+  let lastErr;
+  for (let i = 0; i <= retry; i++) {
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      // Support both array and {data:[...]} format
+      allData = Array.isArray(json) ? json : (json.data || []);
+      return allData;
+    } catch(err) {
+      lastErr = err;
+      if (i < retry) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+  throw new Error('Không thể kết nối đến API. ' + (lastErr?.message || ''));
+}
+
+async function search() {
+  const q1 = document.getElementById('drug1').value.trim();
+  const q2 = document.getElementById('drug2').value.trim();
+  const level = document.getElementById('level').value;
+  const nhom = document.getElementById('nhom').value;
+
+  if (!q1 && !q2 && !level && !nhom) {
+    document.getElementById('results').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <h3>Nhập tên thuốc để bắt đầu</h3>
+        <p>Nhập ít nhất tên một thuốc để tra cứu tương tác</p>
+      </div>`;
+    return;
+  }
+
+  // Show loading
+  const btn = document.getElementById('btnSearch');
+  btn.disabled = true;
+  document.getElementById('btnText').innerHTML = '<div class="spinner"></div> Đang tải…';
+  document.getElementById('results').innerHTML = renderSkeletons(3);
+  document.getElementById('statsBar').style.display = 'none';
+
+  try {
+    const data = await fetchData();
+
+    const results = data.filter(item => {
+      const t1 = (item['Thuốc 1']?.value || '').toLowerCase();
+      const t2 = (item['Thuốc 2']?.value || '').toLowerCase();
+      const lv = (item['Mức độ']?.value || '');
+      const nh = (item['Nhóm tương tác']?.value || '');
+
+      const matchDrug = (() => {
+        if (!q1 && !q2) return true;
+        const d1 = q1.toLowerCase(), d2 = q2.toLowerCase();
+        if (d1 && d2) {
+          return (t1.includes(d1) && t2.includes(d2)) || (t1.includes(d2) && t2.includes(d1));
+        }
+        const q = (d1 || d2);
+        return t1.includes(q) || t2.includes(q);
+      })();
+
+      const matchLevel = !level || lv === level;
+      const matchNhom = !nhom || nh === nhom;
+
+      return matchDrug && matchLevel && matchNhom;
+    });
+
+    // Stats
+    const ccc = results.filter(r => r['Mức độ']?.value === 'Chống chỉ định').length;
+    const cccd = results.filter(r => r['Mức độ']?.value === 'Chống chỉ định có điều kiện').length;
+    const statsEl = document.getElementById('statsBar');
+    if (results.length > 0) {
+      statsEl.style.display = 'flex';
+      statsEl.innerHTML = `
+        <div class="stat-chip total">📊 ${results.length} kết quả</div>
+        ${ccc ? `<div class="stat-chip danger">🚫 ${ccc} chống chỉ định</div>` : ''}
+        ${cccd ? `<div class="stat-chip warning">⚠️ ${cccd} có điều kiện</div>` : ''}
+      `;
+    } else {
+      statsEl.style.display = 'none';
+    }
+
+    if (results.length === 0) {
+      document.getElementById('sortBar').style.display = 'none';
+      document.getElementById('results').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">💊</div>
+          <h3>Không tìm thấy tương tác</h3>
+          <p>Không có dữ liệu tương tác cho từ khóa này.<br>Thử kiểm tra chính tả hoặc thay đổi bộ lọc.</p>
+        </div>`;
+    } else {
+      document.getElementById('sortBar').style.display = 'flex';
+      lastResults = results;
+      lastQ1 = q1; lastQ2 = q2;
+      renderResults();
+    }
+
+  } catch (err) {
+    document.getElementById('sortBar').style.display = 'none';
+    document.getElementById('results').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠️</div>
+        <h3>Lỗi kết nối</h3>
+        <p>${err.message}<br>Vui lòng kiểm tra kết nối mạng và thử lại.</p>
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    document.getElementById('btnText').textContent = '🔎 Tra cứu tương tác';
+  }
+}
+
+// ── Sort / Toggle / Copy ──────────────────────────────────
+let lastResults = [];
+let lastQ1 = '', lastQ2 = '';
+let currentSort = 'severity';
+
+const SEVERITY_ORDER = { 'Chống chỉ định': 0, 'Chống chỉ định có điều kiện': 1, 'Thận trọng': 2 };
+
+function setSort(mode, btn) {
+  currentSort = mode;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderResults();
+}
+
+function renderResults() {
+  let sorted = [...lastResults];
+  if (currentSort === 'severity') {
+    sorted.sort((a, b) => {
+      const la = a['Mức độ']?.value || '';
+      const lb = b['Mức độ']?.value || '';
+      return (SEVERITY_ORDER[la] ?? 9) - (SEVERITY_ORDER[lb] ?? 9);
+    });
+  }
+  document.getElementById('results').innerHTML = sorted.map(item => renderCard(item, lastQ1, lastQ2)).join('');
+}
+
+function toggleCard(uid) {
+  const body = document.getElementById(uid + '_body');
+  const icon = document.getElementById(uid + '_icon');
+  const header = document.getElementById(uid).querySelector('.card-header');
+  body.classList.toggle('collapsed');
+  if (body.classList.contains('collapsed')) {
+    icon.textContent = '▸';
+    header.classList.add('collapsed-indicator');
+  } else {
+    icon.textContent = '▾';
+    header.classList.remove('collapsed-indicator');
+  }
+}
+
+function escAttr(s) {
+  return (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+}
+
+function copyCard(uid, t1, t2, level, nhom, cochef, hq, xt, src) {
+  const text =
+`TƯƠNG TÁC THUỐC
+Thuốc 1: ${t1}
+Thuốc 2: ${t2}
+Mức độ: ${level}
+Nhóm: ${nhom}
+Cơ chế: ${cochef}
+Hậu quả: ${hq}
+Xử trí: ${xt}
+Nguồn: ${src}`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector(`#${uid} .btn-icon`);
+    if (!btn) return;
+    btn.textContent = '✅';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1800);
+  }).catch(() => {
+    alert('Không thể sao chép. Vui lòng thử lại.');
+  });
+}
+
+// Auto-load & search on page load to show sample
+window.onload = async () => {
+  try {
+    const data = await fetchData();
+    setupAutocomplete('drug1', 'wrap1', data);
+    setupAutocomplete('drug2', 'wrap2', data);
+    // Update badge with live count
+    const badge = document.querySelector('.badge');
+    if (badge && data.length > 0) {
+      badge.textContent = `📊 ${data.length.toLocaleString('vi-VN')} cặp tương tác trong CSDL`;
+    }
+  } catch {}
+};
+
+// ── PWA Install Prompt ────────────────────────────────────
+let deferredPrompt = null;
+const installBanner = document.getElementById('installBanner');
+const btnInstall    = document.getElementById('btnInstall');
+const btnDismiss    = document.getElementById('btnDismiss');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show banner after 3s nếu chưa dismiss
+  if (!sessionStorage.getItem('pwa-dismissed')) {
+    setTimeout(() => installBanner.classList.add('show'), 3000);
+  }
+});
+
+btnInstall?.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBanner.classList.remove('show');
+});
+
+btnDismiss?.addEventListener('click', () => {
+  installBanner.classList.remove('show');
+  sessionStorage.setItem('pwa-dismissed', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+  installBanner.classList.remove('show');
+  deferredPrompt = null;
+});
+
+// ── Autocomplete ──────────────────────────────────────────
+function getDrugList(data) {
+  const map = new Map();
+  data.forEach(item => {
+    const t1 = item['Thuốc 1']?.value?.trim();
+    const t2 = item['Thuốc 2']?.value?.trim();
+    const lv = item['Mức độ']?.value || '';
+    if (t1) {
+      if (!map.has(t1)) map.set(t1, lv);
+    }
+    if (t2) {
+      if (!map.has(t2)) map.set(t2, lv);
+    }
+  });
+  // Sort alphabetically
+  return [...map.entries()].sort((a,b) => a[0].localeCompare(b[0], 'vi'));
+}
+
+function levelPill(lv) {
+  if (!lv) return '';
+  if (lv.includes('Chống chỉ định có điều kiện'))
+    return `<span class="ac-pill ac-pill-cccd">CĐ có ĐK</span>`;
+  if (lv.includes('Chống chỉ định'))
+    return `<span class="ac-pill ac-pill-ccc">Chống chỉ định</span>`;
+  if (lv.includes('Thận trọng'))
+    return `<span class="ac-pill ac-pill-tt">Thận trọng</span>`;
+  return '';
+}
+
+function acHighlight(text, q) {
+  if (!q) return text;
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`(${esc})`, 'gi'), '<mark>$1</mark>');
+}
+
+function setupAutocomplete(inputId, wrapId, data) {
+  const input = document.getElementById(inputId);
+  const wrap  = document.getElementById(wrapId);
+  const drugList = getDrugList(data);
+  let activeIdx = -1;
+  let dropdown = null;
+
+  function closeDropdown() {
+    if (dropdown) { dropdown.remove(); dropdown = null; }
+    activeIdx = -1;
+  }
+
+  function openDropdown(items, query) {
+    closeDropdown();
+    if (!items.length) return;
+
+    dropdown = document.createElement('div');
+    dropdown.className = 'ac-dropdown';
+
+    items.forEach(([name, lv], idx) => {
+      const div = document.createElement('div');
+      div.className = 'ac-item';
+      div.innerHTML = `<span>${acHighlight(name, query)}</span>`;
+      div.addEventListener('mousedown', e => {
+        e.preventDefault();
+        input.value = name;
+        closeDropdown();
+        // move focus to next input or trigger search
+        if (inputId === 'drug1') document.getElementById('drug2').focus();
+      });
+      dropdown.appendChild(div);
+    });
+
+    wrap.appendChild(dropdown);
+  }
+
+  function updateActive() {
+    if (!dropdown) return;
+    const items = dropdown.querySelectorAll('.ac-item');
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+    if (activeIdx >= 0) items[activeIdx]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) { closeDropdown(); return; }
+    const matches = drugList
+      .filter(([name]) => name.toLowerCase().includes(q))
+      .slice(0, 12);
+    if (matches.length) openDropdown(matches, input.value.trim());
+    else closeDropdown();
+    activeIdx = -1;
+  });
+
+  input.addEventListener('keydown', e => {
+    if (!dropdown) return;
+    const items = dropdown.querySelectorAll('.ac-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      updateActive();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, 0);
+      updateActive();
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (activeIdx >= 0 && items[activeIdx]) {
+        e.preventDefault();
+        input.value = items[activeIdx].querySelector('span').textContent;
+        closeDropdown();
+        if (e.key === 'Tab') {
+          if (inputId === 'drug1') document.getElementById('drug2').focus();
+        }
+      }
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(closeDropdown, 150);
+  });
+}
+</script>
+</body>
+</html>
 
