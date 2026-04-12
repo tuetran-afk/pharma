@@ -1295,11 +1295,6 @@ function renderQG() {
       <div class="stat-sub">${mhCount} mặt hàng</div>
     </div>
     <div class="stat">
-      <div class="stat-label">SL Trúng thầu</div>
-      <div class="stat-val">${fmtN(totalSLTrung)}</div>
-      <div class="stat-sub">Đã giao ${fmtN(totalSLDaGiao)} (${totalSLTrung>0?(totalSLDaGiao/totalSLTrung*100).toFixed(1):0}%)</div>
-    </div>
-    <div class="stat">
       <div class="stat-label">GT Hợp đồng</div>
       <div class="stat-val">${fmtM(totalGT)}</div>
       <div class="stat-sub">Thực hiện ${fmtM(totalTH)} (${totalGT>0?(totalTH/totalGT*100).toFixed(1):0}%)</div>
@@ -1617,12 +1612,20 @@ function showTip(e, idx) {
   const sl = r.slTrung > 0 ? (r.slDaGiao / r.slTrung * 100).toFixed(1) : 0;
   const gtPct = r.giaTriHD > 0 ? (r.giaTriThucHien / r.giaTriHD * 100).toFixed(1) : 0;
   const warnColor = wl === 'red' || wl === 'expired' ? '#C0392B' : wl === 'yellow' ? '#856404' : '#1D9E75';
-  const headerLine = r._tab === 'tinh'
-    ? `<div style="font-size:10px;color:var(--text2);margin-bottom:2px">${r.donViDauThau}</div>${r.bvPhanBo !== r.donViDauThau ? `<div style="font-size:10px;color:#2C4A8A;margin-bottom:6px">🏥 ${r.bvPhanBo}</div>` : '<div style="margin-bottom:6px"></div>'}`
-    : `<div style="font-size:10px;color:var(--text2);margin-bottom:6px">${r.bv||''}</div>`;
+  let tipTitle, headerLine;
+  if (r._tab === 'tinh') {
+    tipTitle = r.matHang;
+    headerLine = `<div style="font-size:10px;color:var(--text2);margin-bottom:2px">${r.donViDauThau}</div>${r.bvPhanBo !== r.donViDauThau ? `<div style="font-size:10px;color:#2C4A8A;margin-bottom:6px">🏥 ${r.bvPhanBo}</div>` : '<div style="margin-bottom:6px"></div>'}`;
+  } else if (r._tab === 'qg') {
+    tipTitle = r.bv || '';
+    headerLine = `<div style="font-size:10px;color:var(--text2);margin-bottom:6px">💊 ${r.matHang}</div>`;
+  } else {
+    tipTitle = r.matHang;
+    headerLine = `<div style="font-size:10px;color:var(--text2);margin-bottom:6px">${r.bv||''}</div>`;
+  }
 
   tipEl.innerHTML = `
-    <div class="tip-title">${r.matHang}</div>
+    <div class="tip-title">${tipTitle}</div>
     ${headerLine}
     <hr class="tip-divider">
     <div class="tip-row"><span class="tip-label">SL Ký HĐ</span><span class="tip-val">${fmtN(r.slTrung)}</span></div>
