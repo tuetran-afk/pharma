@@ -1446,8 +1446,8 @@ function parseRowsRR(rows) {
       const namKQ = sn(r[colNamKQ]);
       const bv = String(r[colBV]||'').trim();
       const mh = String(r[colMH]||'').trim();
-      // Chỉ lấy năm 2026, có mặt hàng, không phải dòng tổng
-      if (Math.round(namKQ) !== 2026) return false;
+      // Chỉ lấy năm hiện tại, có mặt hàng, không phải dòng tổng
+      if (Math.round(namKQ) !== new Date().getFullYear()) return false;
       if (!bv || !mh) return false;
       if (bv.toLowerCase().startsWith('cộng') || bv.toLowerCase().startsWith('cong')) return false;
       return true;
