@@ -1,1 +1,1754 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theo dõi HĐ</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1e1e1c" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Theo dõi HĐ">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg:#ffffff; --bg2:#f4f5f7; --bg-grp:#fafafa; --bg3:#eeedea;
+  --text:#222; --text2:#666; --text3:#999;
+  --border:#e8e8e8; --border2:#d6d6d6;
+  --r:6px; --rl:10px;
+  --red:#C0392B; --red-bg:#FEECEC; --red-border:#F5ACAC;
+  --yellow:#856404; --yellow-bg:#FFF3CD; --yellow-border:#FFDA6A;
+  --green:#0D4D30; --green-bg:#E4F5EE; --green-border:#A3D9BC;
+  --blue:#0C447C; --blue-bg:#E6F1FB; --blue-border:#85B7EB;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1e1e1c;--bg2:#2a2a28;--bg-grp:#242424;--bg3:#333330;--text:#f0efe8;--text2:#aaa;--text3:#555;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.16)}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh}
+.page{max-width:1500px;margin:0 auto;padding:1.5rem;display:flex;flex-direction:column}
+h1{font-size:20px;font-weight:500;margin-bottom:.75rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.update-time{font-size:12px;padding:3px 10px;border-radius:12px;background:var(--bg);color:var(--text2);font-weight:normal;border:1px solid var(--border2);margin-left:auto}
 
+/* TABS */
+.tab-bar{display:flex;gap:0;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;flex-shrink:0}
+.tab-btn{flex:1;font-size:13px;padding:8px 16px;background:none;border:none;color:var(--text2);cursor:pointer;font-family:inherit;font-weight:500;transition:all .12s;border-right:1px solid var(--border2)}
+.tab-btn:last-child{border-right:none}
+.tab-btn.active{background:var(--blue-bg);color:var(--blue);font-weight:700}
+.tab-btn:hover:not(.active){background:var(--bg2)}
+.tab-panel{display:none}
+.tab-panel.active{display:flex;flex-direction:column}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:1rem}
+@media(max-width:900px){.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:480px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--bg);border-radius:var(--r);border:1px solid var(--border);padding:.75rem 1rem;cursor:pointer;transition:all .12s}
+.stat:hover{border-color:var(--border2);background:var(--bg2)}
+.stat.active{outline:2px solid #378ADD}
+.stat-label{font-size:12px;color:var(--text2);margin-bottom:4px}
+.stat-val{font-size:22px;font-weight:500}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* CARD & TOOLBAR */
+.card{background:var(--bg);border-radius:var(--rl);border:1px solid var(--border);padding:1.25rem;margin-bottom:1rem}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toolbar .spacer{flex:1;min-width:12px;flex-shrink:0}
+select,input[type=text]{font-size:12px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);font-family:inherit;outline:none;min-width:0;flex-shrink:1}
+select:focus,input:focus{border-color:#378ADD;box-shadow:0 0 0 2px rgba(55,138,221,.15)}
+.btn{font-size:12px;padding:6px 13px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .12s;font-weight:500}
+.btn:hover{background:var(--bg2)}
+.btn-blue{background:#E6F1FB;color:#0C447C;border-color:#85B7EB}
+.btn-pink{background:#FBEAF0;color:#72243E;border-color:#ED93B1}
+
+/* MULTI-SELECT BV DROPDOWN */
+.ms-wrap{position:relative;flex:1;min-width:80px;flex-shrink:1}
+.ms-btn{font-size:12px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);cursor:pointer;width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:6px;font-family:inherit;white-space:nowrap;overflow:hidden}
+.ms-btn:focus{outline:none;border-color:#378ADD;box-shadow:0 0 0 2px rgba(55,138,221,.15)}
+.ms-btn-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.ms-badge{background:#378ADD;color:#fff;border-radius:8px;font-size:10px;font-weight:700;padding:0 5px;flex-shrink:0}
+.ms-caret{flex-shrink:0;opacity:.5;font-size:10px;transition:transform .15s}
+.ms-wrap.open .ms-caret{transform:rotate(180deg)}
+.ms-dropdown{position:absolute;top:calc(100% + 4px);left:0;min-width:220px;max-width:320px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--rl);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:100;display:none;flex-direction:column;overflow:hidden}
+.ms-wrap.open .ms-dropdown{display:flex}
+.ms-search{padding:8px;border-bottom:1px solid var(--border)}
+.ms-search input{width:100%;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-family:inherit;outline:none}
+.ms-search input:focus{border-color:#378ADD}
+.ms-actions{display:flex;gap:0;border-bottom:1px solid var(--border)}
+.ms-action-btn{flex:1;font-size:11px;padding:5px 8px;background:none;border:none;color:#378ADD;cursor:pointer;font-family:inherit;font-weight:500}
+.ms-action-btn:hover{background:var(--bg2)}
+.ms-action-btn+.ms-action-btn{border-left:1px solid var(--border)}
+.ms-list{overflow-y:auto;max-height:200px;padding:4px 0}
+.ms-item{display:flex;align-items:center;gap:8px;padding:5px 12px;cursor:pointer;font-size:12px;color:var(--text);transition:background .08s}
+.ms-item:hover{background:var(--bg2)}
+.ms-item input[type=checkbox]{accent-color:#378ADD;width:13px;height:13px;flex-shrink:0;cursor:pointer}
+.ms-item label{cursor:pointer;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-empty{padding:12px;text-align:center;font-size:12px;color:var(--text3)}
+@media(max-width:600px){.ms-dropdown{min-width:180px;max-width:calc(100vw - 2rem)}.ms-list{max-height:160px}}
+
+/* TABLE */
+.table-wrap{max-height:65vh;overflow:auto;border-radius:var(--rl);scrollbar-width:thin;scrollbar-color:#bbb var(--bg2)}
+.table-wrap::-webkit-scrollbar{width:8px;height:8px}
+.table-wrap::-webkit-scrollbar-track{background:var(--bg2)}
+.table-wrap::-webkit-scrollbar-thumb{background:#bbb;border-radius:4px}
+
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--border)}
+thead th{position:sticky;top:0;background:var(--bg2);color:var(--text2);font-weight:600;z-index:10;padding:5px 5px;white-space:nowrap}
+thead th.pin-bv{position:sticky;left:0;z-index:20;background:var(--bg2);min-width:140px;max-width:140px;text-align:left}
+thead th.pin-mat{position:sticky;left:0;z-index:20;background:var(--bg2);min-width:160px;max-width:160px;text-align:left;border-left:1px solid var(--border2)}
+
+td{padding:4px 5px;vertical-align:middle}
+td.pin-bv{position:sticky;left:0;z-index:5;background:var(--bg);min-width:140px;max-width:140px;font-weight:600;font-size:10px;color:var(--text2)}
+td.pin-mat{position:sticky;left:0;z-index:5;background:var(--bg);min-width:160px;max-width:160px;border-left:1px solid var(--border2);font-size:14px;font-weight:500}
+tbody tr:hover td{background:var(--bg-grp)}
+tbody tr:hover td.pin-bv,tbody tr:hover td.pin-mat{background:var(--bg-grp)}
+
+/* Group header */
+.grp-hdr td{background:var(--bg-grp);font-weight:600;padding:0;border-top:2px solid var(--border2)}
+.grp-sticky{position:sticky;left:0;display:inline-flex;align-items:center;gap:8px;padding:7px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text2)}
+.grp-count{font-weight:normal;color:var(--text3);font-size:10px}
+
+/* Sub-group header (tỉnh: SYT → BV phân bổ) */
+.subgrp-hdr td{background:#F5F8FF;padding:0;border-top:1px solid var(--border)}
+.subgrp-sticky{position:sticky;left:0;display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 28px;font-size:10px;color:#2C4A8A;font-weight:600}
+
+/* Pin shadow */
+td.pin-bv::after,thead th.pin-bv::after{content:'';position:absolute;right:-4px;top:0;bottom:0;width:4px;background:linear-gradient(to right,rgba(0,0,0,.05),transparent);pointer-events:none}
+td.pin-mat::after,thead th.pin-mat::after{content:'';position:absolute;right:-4px;top:0;bottom:0;width:4px;background:linear-gradient(to right,rgba(0,0,0,.04),transparent);pointer-events:none}
+td.pin-bv,thead th.pin-bv,td.pin-mat,thead th.pin-mat{position:sticky;overflow:visible}
+
+/* Number cells */
+td.num{text-align:right;font-variant-numeric:tabular-nums;font-size:14px}
+td.center{text-align:center}
+
+/* Progress bar inline */
+.mini-bar-wrap{width:80px;display:inline-block;vertical-align:middle}
+.mini-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:2px}
+.mini-fill{height:100%;border-radius:3px;transition:width .4s}
+.mini-label{font-size:10px;text-align:right;color:var(--text2)}
+
+/* Times Gone bar */
+.tg-wrap{display:flex;align-items:center;gap:5px;min-width:110px}
+.tg-bar{flex:1;height:8px;border-radius:4px;background:var(--border);overflow:hidden;position:relative}
+.tg-fill-gone{position:absolute;left:0;top:0;bottom:0;background:#D4537E;border-radius:4px 0 0 4px}
+.tg-fill-done{position:absolute;top:0;bottom:0;background:#1D9E75;border-radius:4px}
+.tg-label{font-size:10px;color:var(--text2);white-space:nowrap;min-width:32px;text-align:right}
+
+/* Days left badge */
+.dlbadge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap}
+.dlbadge.red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.dlbadge.yellow{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border)}
+.dlbadge.green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.dlbadge.blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+
+/* Row warning highlight */
+tbody tr.warn-red td.pin-bv,tbody tr.warn-red td.pin-mat{background:#FFF5F5!important}
+tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF0!important}
+
+/* Tooltip */
+.tip{position:fixed;z-index:999;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:10px;font-size:11px;color:var(--text);pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:260px;max-width:340px}
+.tip.show{opacity:1}
+.tip-title{font-weight:600;margin-bottom:6px;font-size:12px;border-bottom:1px solid var(--border);padding-bottom:5px;line-height:1.4}
+.tip-row{display:flex;justify-content:space-between;gap:14px;margin-bottom:3px;align-items:center}
+.tip-label{color:var(--text2)}
+.tip-val{font-weight:500;text-align:right}
+.tip-divider{border:none;border-top:1px solid var(--border);margin:5px 0}
+
+/* Toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--text);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:12px;opacity:0;transform:translateY(6px);transition:all .2s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* No data */
+.no-data{text-align:center;padding:3rem;color:var(--text3);font-size:12px}
+
+@media(max-width:600px){
+  .page{padding:.75rem}
+  h1{font-size:15px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:7px}
+  .card{padding:.75rem}
+  .toolbar{flex-wrap:wrap;gap:6px}
+  .toolbar .spacer{display:none}
+  select,input[type=text]{font-size:13px;padding:7px 8px}
+  .table-wrap{max-height:60vh}
+  table{font-size:10px}
+  thead th.pin-bv,td.pin-bv{min-width:110px;max-width:110px}
+  thead th.pin-mat,td.pin-mat{left:0;min-width:120px;max-width:120px}
+  .mini-bar-wrap{width:55px}
+  .tg-wrap{min-width:80px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>
+    📊 Theo dõi SL Trúng Thầu
+    <span class="update-time" id="update-time-hcm" style="display:none">⏳</span>
+    <span class="update-time" id="update-time-tinh" style="display:none">⏳</span>
+    <span class="update-time" id="update-time-qg" style="display:none">⏳</span>
+    <span class="update-time" id="update-time-rr" style="display:none">⏳</span>
+  </h1>
+
+  <!-- TAB BAR + global actions -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap">
+    <div class="tab-bar" style="margin-bottom:0;flex:1;min-width:200px">
+      <button class="tab-btn active" id="tab-btn-hcm" onclick="switchTab('hcm')">🏙️ TP.HCM</button>
+      <button class="tab-btn" id="tab-btn-tinh" onclick="switchTab('tinh')">🗺️ Tỉnh</button>
+      <button class="tab-btn" id="tab-btn-qg" onclick="switchTab('qg')">🇻🇳 Quốc Gia</button>
+      <button class="tab-btn" id="tab-btn-rr" onclick="switchTab('rr')">📋 Chờ kết quả</button>
+    </div>
+    <label class="btn btn-blue" style="cursor:pointer;white-space:nowrap;flex-shrink:0">📂 Load Excel<input type="file" id="file-in" accept=".xlsx,.xls" style="display:none"></label>
+    <button class="btn" onclick="clearCache()" title="Xóa dữ liệu đã lưu" style="white-space:nowrap;flex-shrink:0;color:#999">🗑 Xóa cache</button>
+  </div>
+
+  <!-- ===== TAB TPHCM ===== -->
+  <div class="tab-panel active" id="tab-hcm">
+    <div class="stats" id="stats-row-hcm"></div>
+    <div class="card" style="margin-bottom:.5rem">
+      <div class="toolbar">
+        <input type="text" id="search-input-hcm" placeholder="🔍 Tìm mặt hàng..." oninput="renderHCM()" style="flex:2;min-width:120px">
+        <select id="sel-warn-hcm" onchange="renderHCM()" style="flex:1.5;min-width:130px">
+          <option value="">-- Tất cả trạng thái --</option>
+          <option value="red">⚠️ Cảnh báo 2 tháng</option>
+          <option value="yellow">⏳ Cảnh báo 4 tháng</option>
+          <option value="green">✅ Còn hạn &gt; 120 ngày</option>
+          <option value="done">✔ Đã hoàn thành (SL = 100%)</option>
+          <option value="tre">⏱ Trễ tiến độ</option>
+          <option value="chuagiao">📦 Chưa giao lần nào</option>
+        </select>
+        <div class="ms-wrap" id="ms-bv-wrap-hcm" style="flex:1.5;min-width:130px">
+          <button class="ms-btn" id="ms-bv-btn-hcm" onclick="toggleMsBV('hcm',event)" type="button">
+            <span class="ms-btn-text" id="ms-bv-label-hcm">-- Tất cả bệnh viện --</span>
+            <span class="ms-badge" id="ms-bv-badge-hcm" style="display:none"></span>
+            <span class="ms-caret">▼</span>
+          </button>
+          <div class="ms-dropdown" id="ms-bv-dropdown-hcm">
+            <div class="ms-search"><input type="text" id="ms-bv-search-hcm" placeholder="🔍 Tìm bệnh viện..." oninput="filterMsBV('hcm')"></div>
+            <div class="ms-actions">
+              <button class="ms-action-btn" onclick="selectAllBV('hcm')" type="button">Chọn tất cả</button>
+              <button class="ms-action-btn" onclick="clearAllBV('hcm')" type="button">Bỏ tất cả</button>
+            </div>
+            <div class="ms-list" id="ms-bv-list-hcm"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+          <button class="btn" onclick="toggleAll('hcm')" id="btn-collapse-hcm" style="white-space:nowrap">⊟ Gom tất cả</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;border:none;background:transparent">
+      <div class="table-wrap" id="table-wrap-hcm">
+        <table>
+          <thead id="tbl-head-hcm"></thead>
+          <tbody id="tbl-body-hcm"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB TỈNH ===== -->
+  <div class="tab-panel" id="tab-tinh">
+    <div class="stats" id="stats-row-tinh"></div>
+    <div class="card" style="margin-bottom:.5rem">
+      <div class="toolbar">
+        <input type="text" id="search-input-tinh" placeholder="🔍 Tìm mặt hàng / BV..." oninput="renderTinh()" style="flex:2;min-width:120px">
+        <select id="sel-warn-tinh" onchange="renderTinh()" style="flex:1.5;min-width:130px">
+          <option value="">-- Tất cả trạng thái --</option>
+          <option value="red">⚠️ Cảnh báo 2 tháng</option>
+          <option value="yellow">⏳ Cảnh báo 4 tháng</option>
+          <option value="green">✅ Còn hạn &gt; 120 ngày</option>
+          <option value="done">✔ Đã hoàn thành (SL = 100%)</option>
+          <option value="tre">⏱ Trễ tiến độ</option>
+          <option value="chuagiao">📦 Chưa giao lần nào</option>
+        </select>
+        <!-- Filter theo đơn vị đấu thầu (SYT/BV lớn) -->
+        <div class="ms-wrap" id="ms-bv-wrap-tinh" style="flex:1.5;min-width:130px">
+          <button class="ms-btn" id="ms-bv-btn-tinh" onclick="toggleMsBV('tinh',event)" type="button">
+            <span class="ms-btn-text" id="ms-bv-label-tinh">-- Tất cả đơn vị --</span>
+            <span class="ms-badge" id="ms-bv-badge-tinh" style="display:none"></span>
+            <span class="ms-caret">▼</span>
+          </button>
+          <div class="ms-dropdown" id="ms-bv-dropdown-tinh">
+            <div class="ms-search"><input type="text" id="ms-bv-search-tinh" placeholder="🔍 Tìm đơn vị đấu thầu..." oninput="filterMsBV('tinh')"></div>
+            <div class="ms-actions">
+              <button class="ms-action-btn" onclick="selectAllBV('tinh')" type="button">Chọn tất cả</button>
+              <button class="ms-action-btn" onclick="clearAllBV('tinh')" type="button">Bỏ tất cả</button>
+            </div>
+            <div class="ms-list" id="ms-bv-list-tinh"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+          <button class="btn" onclick="toggleAll('tinh')" id="btn-collapse-tinh" style="white-space:nowrap">⊟ Gom tất cả</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;border:none;background:transparent">
+      <div class="table-wrap" id="table-wrap-tinh">
+        <table>
+          <thead id="tbl-head-tinh"></thead>
+          <tbody id="tbl-body-tinh"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB QUỐC GIA ===== -->
+  <div class="tab-panel" id="tab-qg">
+    <div class="stats" id="stats-row-qg"></div>
+    <div class="card" style="margin-bottom:.5rem">
+      <div class="toolbar">
+        <input type="text" id="search-input-qg" placeholder="🔍 Tìm mặt hàng / bệnh viện..." oninput="renderQG()" style="flex:2;min-width:120px">
+        <select id="sel-warn-qg" onchange="renderQG()" style="flex:1.5;min-width:130px">
+          <option value="">-- Tất cả trạng thái --</option>
+          <option value="red">⚠️ Cảnh báo 2 tháng</option>
+          <option value="yellow">⏳ Cảnh báo 4 tháng</option>
+          <option value="green">✅ Còn hạn &gt; 120 ngày</option>
+          <option value="done">✔ Đã hoàn thành (SL = 100%)</option>
+          <option value="chuagiao">📦 Chưa giao lần nào</option>
+        </select>
+        <div class="ms-wrap" id="ms-bv-wrap-qg" style="flex:1.5;min-width:130px">
+          <button class="ms-btn" id="ms-bv-btn-qg" onclick="toggleMsBV('qg',event)" type="button">
+            <span class="ms-btn-text" id="ms-bv-label-qg">-- Tất cả mặt hàng --</span>
+            <span class="ms-badge" id="ms-bv-badge-qg" style="display:none"></span>
+            <span class="ms-caret">▼</span>
+          </button>
+          <div class="ms-dropdown" id="ms-bv-dropdown-qg">
+            <div class="ms-search"><input type="text" id="ms-bv-search-qg" placeholder="🔍 Tìm mặt hàng..." oninput="filterMsBV('qg')"></div>
+            <div class="ms-actions">
+              <button class="ms-action-btn" onclick="selectAllBV('qg')" type="button">Chọn tất cả</button>
+              <button class="ms-action-btn" onclick="clearAllBV('qg')" type="button">Bỏ tất cả</button>
+            </div>
+            <div class="ms-list" id="ms-bv-list-qg"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+          <button class="btn" onclick="toggleAll('qg')" id="btn-collapse-qg" style="white-space:nowrap">⊟ Gom tất cả</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;border:none;background:transparent">
+      <div class="table-wrap" id="table-wrap-qg">
+        <table>
+          <thead id="tbl-head-qg"></thead>
+          <tbody id="tbl-body-qg"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB THẦU RR - CHỜ KẾT QUẢ ===== -->
+  <div class="tab-panel" id="tab-rr">
+    <div class="stats" id="stats-row-rr"></div>
+    <div class="card" style="margin-bottom:.5rem">
+      <div class="toolbar">
+        <input type="text" id="search-input-rr" placeholder="🔍 Tìm mặt hàng / BV..." oninput="renderRR()" style="flex:2;min-width:120px">
+        <div class="ms-wrap" id="ms-bv-wrap-rr" style="flex:1.5;min-width:130px">
+          <button class="ms-btn" id="ms-bv-btn-rr" onclick="toggleMsBV('rr',event)" type="button">
+            <span class="ms-btn-text" id="ms-bv-label-rr">-- Tất cả bệnh viện --</span>
+            <span class="ms-badge" id="ms-bv-badge-rr" style="display:none"></span>
+            <span class="ms-caret">▼</span>
+          </button>
+          <div class="ms-dropdown" id="ms-bv-dropdown-rr">
+            <div class="ms-search"><input type="text" id="ms-bv-search-rr" placeholder="🔍 Tìm bệnh viện..." oninput="filterMsBV('rr')"></div>
+            <div class="ms-actions">
+              <button class="ms-action-btn" onclick="selectAllBV('rr')" type="button">Chọn tất cả</button>
+              <button class="ms-action-btn" onclick="clearAllBV('rr')" type="button">Bỏ tất cả</button>
+            </div>
+            <div class="ms-list" id="ms-bv-list-rr"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+          <button class="btn" onclick="toggleAll('rr')" id="btn-collapse-rr" style="white-space:nowrap">⊟ Gom tất cả</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;border:none;background:transparent">
+      <div class="table-wrap" id="table-wrap-rr">
+        <table>
+          <thead id="tbl-head-rr"></thead>
+          <tbody id="tbl-body-rr"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .page -->
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast-el"></div>
+
+<script>
+// ── GLOBALS ──
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+let activeTab = 'hcm';
+let allDataHCM = [], allDataTinh = [], allDataQG = [], allDataRR = [];
+let tipCache = [];
+
+// ── FORMAT HELPERS ──
+const fmtN = n => n == null ? '—' : Number(n).toLocaleString('vi-VN');
+const fmtM = n => {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1e9) return (n/1e9).toFixed(2) + ' tỷ';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + ' tr';
+  return Number(n).toLocaleString('vi-VN');
+};
+const fmtPct = v => v == null ? '—' : (v*100).toFixed(0) + '%';
+const fmtDate = s => s ? s.slice(0,10).split('-').reverse().join('/') : '—';
+
+function warnLevel(r) {
+  const dl = r.daysLeft;
+  if (dl == null) return 'none';
+  if (r.pctThucHien >= 1 && r.conLai <= 0) return 'done';
+  if (dl < 0) return 'expired';
+  if (dl < 60) return 'red';
+  if (dl < 120) return 'yellow';
+  return 'green';
+}
+
+// ── TAB SWITCHING ──
+function switchTab(tab) {
+  activeTab = tab;
+  ['hcm','tinh','qg','rr'].forEach(t => {
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    const upd = document.getElementById('update-time-' + t);
+    if (upd) upd.style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.ms-wrap').forEach(w => w.classList.remove('open'));
+}
+
+// ── LOAD FILE ──
+document.getElementById('file-in').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+
+      // --- Load TPHCM sheet ---
+      const sheetHCM = wb.SheetNames.find(n =>
+        n.toLowerCase().includes('tphcm') || (n.toLowerCase().includes('sl tr') && n.toLowerCase().includes('hcm'))
+      ) || wb.SheetNames.find(n => n.toLowerCase().includes('sl trúng thầu tphcm'))
+        || wb.SheetNames.find(n => n.toLowerCase().includes('tphcm'));
+
+      if (sheetHCM) {
+        const ws = wb.Sheets[sheetHCM];
+        const rawArr = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false, header: 1 });
+        let headerRowIdx = 0;
+        for (let i = 0; i < Math.min(10, rawArr.length); i++) {
+          const vals = (rawArr[i] || []).map(v => String(v).toLowerCase());
+          if (vals.some(v => v.includes('tên bv') || v.includes('tên mặt hàng') || v.includes('tên m.h'))) {
+            headerRowIdx = i; break;
+          }
+        }
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false, range: headerRowIdx });
+        const hdrKeys = rows.length ? Object.keys(rows[0]) : [];
+        let updateDateStr = null;
+        for (const h of hdrKeys) {
+          const m = h.match(/tính tới ngày[\s:]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
+          if (m) { updateDateStr = m[1]; break; }
+        }
+        allDataHCM = parseRowsHCM(rows);
+        const dateLabel = updateDateStr ? 'Cập nhật tới: ' + updateDateStr : 'Cập nhật: ' + new Date().toLocaleDateString('vi-VN');
+        const labelHCM = dateLabel + ' — ' + sheetHCM;
+        document.getElementById('update-time-hcm').textContent = labelHCM + ' 💾';
+        document.getElementById('update-time-hcm').style.display = activeTab === 'hcm' ? '' : 'none';
+        try { localStorage.setItem('thau_hcm_data', JSON.stringify(allDataHCM)); localStorage.setItem('thau_hcm_label', labelHCM); } catch(e){}
+        renderHCM();
+      }
+
+      // --- Load Tỉnh sheet ---
+      const sheetTinh = wb.SheetNames.find(n =>
+        n.toLowerCase().includes('sl trúng thầu tỉnh') || n.toLowerCase().includes('sl trung thau tinh')
+        || (n.toLowerCase().includes('tỉnh') && n.toLowerCase().includes('sl'))
+      ) || wb.SheetNames.find(n => n.toLowerCase().includes('tinh') && n.toLowerCase().includes('sl'));
+
+      if (sheetTinh) {
+        const ws2 = wb.Sheets[sheetTinh];
+        const rawArr2 = XLSX.utils.sheet_to_json(ws2, { defval: '', raw: false, header: 1 });
+        let hri2 = 0;
+        for (let i = 0; i < Math.min(10, rawArr2.length); i++) {
+          const vals = (rawArr2[i] || []).map(v => String(v).toLowerCase());
+          if (vals.some(v => v.includes('tên bv') || v.includes('tên mặt hàng') || v.includes('phân bổ'))) {
+            hri2 = i; break;
+          }
+        }
+        const rows2 = XLSX.utils.sheet_to_json(ws2, { defval: '', raw: false, range: hri2 });
+        const hdrKeys2 = rows2.length ? Object.keys(rows2[0]) : [];
+        let updateDateStr2 = null;
+        for (const h of hdrKeys2) {
+          const m = h.match(/tính tới ngày[\s:]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
+          if (m) { updateDateStr2 = m[1]; break; }
+        }
+        allDataTinh = parseRowsTinh(rows2);
+        const dateLabelT = updateDateStr2 ? 'Cập nhật tới: ' + updateDateStr2 : 'Cập nhật: ' + new Date().toLocaleDateString('vi-VN');
+        const labelTinh = dateLabelT + ' — ' + sheetTinh;
+        document.getElementById('update-time-tinh').textContent = labelTinh + ' 💾';
+        document.getElementById('update-time-tinh').style.display = activeTab === 'tinh' ? '' : 'none';
+        try { localStorage.setItem('thau_tinh_data', JSON.stringify(allDataTinh)); localStorage.setItem('thau_tinh_label', labelTinh); } catch(e){}
+        renderTinh();
+      }
+
+      // --- Load Quốc Gia sheet ---
+      const sheetQG = wb.SheetNames.find(n =>
+        n.toLowerCase().replace(/\s/g,'').includes('quocgia') ||
+        n.toLowerCase().includes('quốcgia') ||
+        n.toLowerCase().includes('quoc gia')
+      );
+
+      if (sheetQG) {
+        const ws3 = wb.Sheets[sheetQG];
+        // Sheet quốcgia: row 0=title, row 1=tổng, row 2=header, data from row 3
+        const rawArr3 = XLSX.utils.sheet_to_json(ws3, { defval: '', raw: false, header: 1 });
+        // Find header row (contains 'BV ĐƯỢC PHÂN BỔ' or 'SL trúng thầu')
+        let hri3 = 2;
+        for (let i = 0; i < Math.min(6, rawArr3.length); i++) {
+          const vals = (rawArr3[i] || []).map(v => String(v).toLowerCase());
+          if (vals.some(v => v.includes('bv') && v.includes('ph')) || vals.some(v => v.includes('sl trúng') || v.includes('sl trung'))) {
+            hri3 = i; break;
+          }
+        }
+        const rows3 = XLSX.utils.sheet_to_json(ws3, { defval: '', raw: false, range: hri3 });
+        // Extract update date from header keys
+        const hdrKeys3 = rows3.length ? Object.keys(rows3[0]) : [];
+        let updateDateStr3 = null;
+        for (const h of hdrKeys3) {
+          const m = h.match(/tính tới ngày[\s:]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
+          if (m) { updateDateStr3 = m[1]; break; }
+        }
+        allDataQG = parseRowsQG(rows3);
+        const dateLabelQ = updateDateStr3 ? 'Cập nhật tới: ' + updateDateStr3 : 'Cập nhật: ' + new Date().toLocaleDateString('vi-VN');
+        const labelQG = dateLabelQ + ' — ' + sheetQG;
+        document.getElementById('update-time-qg').textContent = labelQG + ' 💾';
+        document.getElementById('update-time-qg').style.display = activeTab === 'qg' ? '' : 'none';
+        try { localStorage.setItem('thau_qg_data', JSON.stringify(allDataQG)); localStorage.setItem('thau_qg_label', labelQG); } catch(e){}
+        renderQG();
+      }
+
+      // --- Load Thầu RR TPHCM sheet (chờ kết quả) ---
+      const sheetRR = wb.SheetNames.find(n =>
+        n.toLowerCase().includes('thầu rr') && (n.toLowerCase().includes('tp.hcm') || n.toLowerCase().includes('tphcm'))
+      ) || wb.SheetNames.find(n =>
+        n.toLowerCase().includes('rr') && (n.toLowerCase().includes('tp.hcm') || n.toLowerCase().includes('tphcm'))
+      ) || wb.SheetNames.find(n => n.toLowerCase().includes('thầu rr'));
+
+      if (sheetRR) {
+        const ws4 = wb.Sheets[sheetRR];
+        // Row 0 = title, Row 1 = headers → range:1 makes row 1 the header keys
+        const rows4 = XLSX.utils.sheet_to_json(ws4, { defval: '', raw: false, range: 1 });
+        allDataRR = parseRowsRR(rows4);
+        const labelRR = 'Thầu RR – Chờ kết quả — ' + sheetRR;
+        document.getElementById('update-time-rr').textContent = labelRR + ' 💾';
+        document.getElementById('update-time-rr').style.display = activeTab === 'rr' ? '' : 'none';
+        try { localStorage.setItem('thau_rr_data', JSON.stringify(allDataRR)); localStorage.setItem('thau_rr_label', labelRR); } catch(e){}
+        renderRR();
+      }
+
+      toast('✅ Đã tải từ ' + f.name + (sheetHCM ? ' [TPHCM]' : '') + (sheetTinh ? ' [Tỉnh]' : '') + (sheetQG ? ' [Quốc Gia]' : '') + (sheetRR ? ' [Chờ KQ]' : ''));
+    } catch(err) { toast('❌ Lỗi: ' + err.message); console.error(err); }
+  };
+  rd.readAsArrayBuffer(f);
+});
+
+// ── NORMALIZE ──
+const norm = s => s.toLowerCase()
+  .replace(/[àáảãạăắằẳẵặâấầẩẫậ]/g,'a')
+  .replace(/[èéẻẽẹêếềểễệ]/g,'e')
+  .replace(/[ìíỉĩị]/g,'i')
+  .replace(/[òóỏõọôốồổỗộơớờởỡợ]/g,'o')
+  .replace(/[ùúủũụưứừửữự]/g,'u')
+  .replace(/[ỳýỷỹỵ]/g,'y')
+  .replace(/đ/g,'d').replace(/\s+/g,' ').trim();
+
+// ── PARSE HCM ──
+function parseRowsHCM(rows) {
+  const hdr = rows.length ? Object.keys(rows[0]) : [];
+  const col = key => {
+    const patterns = {
+      bv:           ['ten bv','benh vien'],
+      matHang:      ['ten mat hang','mat hang','ten m.h'],
+      slTrung:      ['sl trung thau','sl trung'],
+      slDaGiao:     ['sl da giao','sl thuc hien'],
+      conLai:       ['con lai'],
+      donGia:       ['gia trung thau','don gia','gia trung'],
+      giaTriHD:     ['gia tri hop dong','gia tri hd'],
+      ngayKy:       ['ngay ky hop dong','ngay ky'],
+      ngayKetThuc:  ['tg ket thuc','ngay ket thuc','ket thuc hop dong'],
+      soNgayConLai: ['so ngay con'],
+      canhBao:      ['canh bao'],
+      pctThucHien:  ['% da thuc hien','% thuc hien','pct','80% sl'],
+      tang:         ['tang'],
+      congTy:       ['cong ty'],
+      ghiChu:       ['ghi chu'],
+    }[key] || [];
+    return hdr.find(h => patterns.some(p => norm(h).includes(p))) || null;
+  };
+  const sn = v => { try { if (v === '' || v == null) return 0; return parseFloat(String(v).replace(/[^\d.-]/g,'')) || 0; } catch { return 0; } };
+  const sd = v => {
+    try {
+      if (!v) return null;
+      const s = String(v).trim();
+      const dmY = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmY) return `${dmY[3]}-${dmY[2].padStart(2,'0')}-${dmY[1].padStart(2,'0')}`;
+      const d = new Date(v);
+      if (!isNaN(d)) return d.toISOString().slice(0,10);
+      return null;
+    } catch { return null; }
+  };
+  return rows
+    .filter(r => {
+      const bvVal = String(r[col('bv')] || '').trim();
+      return bvVal !== '' && !bvVal.toLowerCase().includes('tên bv') && !bvVal.toLowerCase().includes('tong');
+    })
+    .map(r => {
+      const slTrung   = sn(r[col('slTrung')]);
+      const slDaGiao  = sn(r[col('slDaGiao')]);
+      const donGia    = sn(r[col('donGia')]);
+      const ngayKy    = sd(r[col('ngayKy')]);
+      const ngayKetThuc = sd(r[col('ngayKetThuc')]);
+      let totalDays = null, daysGone = null, daysLeft = null, timesGone = null;
+      if (ngayKy && ngayKetThuc) {
+        const ky = new Date(ngayKy), kt = new Date(ngayKetThuc);
+        totalDays = Math.round((kt - ky) / 86400000);
+        daysGone  = Math.round((TODAY - ky) / 86400000);
+        daysLeft  = Math.round((kt - TODAY) / 86400000);
+        if (totalDays > 0) timesGone = Math.round(daysGone / totalDays * 1000) / 10;
+      }
+      const pctThucHien = slTrung > 0 ? slDaGiao / slTrung : 0;
+      return {
+        bv: String(r[col('bv')] || '').trim(),
+        matHang: String(r[col('matHang')] || '').trim(),
+        slTrung, slDaGiao, donGia,
+        conLai: sn(r[col('conLai')]),
+        giaTriHD: sn(r[col('giaTriHD')]),
+        giaTriThucHien: slDaGiao * donGia,
+        ngayKy, ngayKetThuc, totalDays, daysGone, daysLeft, timesGone,
+        soNgayConLai: sn(r[col('soNgayConLai')]),
+        canhBao: String(r[col('canhBao')] || '').trim(),
+        pctThucHien,
+        tang: String(r[col('tang')] || '').trim(),
+        congTy: String(r[col('congTy')] || '').trim(),
+        ghiChu: String(r[col('ghiChu')] || '').trim(),
+      };
+    });
+}
+
+// ── PARSE TỈNH ──
+function parseRowsTinh(rows) {
+  const hdr = rows.length ? Object.keys(rows[0]) : [];
+  const col = key => {
+    const patterns = {
+      donViDauThau: ['ten bv'],           // col 0: SYT / BV đấu thầu chính
+      bvPhanBo:     ['phan bo','phan bổ'], // col 1: BV được phân bổ cụ thể
+      matHang:      ['ten mat hang','mat hang'],
+      slTrung:      ['sl trung thau','sl trung'],
+      slDaGiao:     ['sl da giao','sl thuc hien'],
+      conLai:       ['con lai'],
+      donGia:       ['gia trung thau','don gia','gia trung'],
+      ngayKy:       ['ngay ky hop dong','ngay ky'],
+      ngayKetThuc:  ['tg ket thuc','ngay ket thuc','ket thuc'],
+      soNgayConLai: ['so ngay con'],
+      canhBao:      ['canh bao'],
+      pctThucHien:  ['% thuc hien','% da thuc hien'],
+      congVanGiamGia: ['cong van giam gia','cong van'],
+    }[key] || [];
+    return hdr.find(h => patterns.some(p => norm(h).includes(p))) || null;
+  };
+
+  // Special: cột "Phân bổ từng BV thuộc thầu SYT" — dùng index nếu pattern không match
+  const colBVPhanBo = col('bvPhanBo') || (hdr.length > 1 ? hdr[1] : null);
+  const colDonViDauThau = col('donViDauThau') || (hdr.length > 0 ? hdr[0] : null);
+
+  const sn = v => { try { if (v === '' || v == null) return 0; return parseFloat(String(v).replace(/[^\d.-]/g,'')) || 0; } catch { return 0; } };
+  const sd = v => {
+    try {
+      if (!v) return null;
+      const s = String(v).trim();
+      const dmY = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmY) return `${dmY[3]}-${dmY[2].padStart(2,'0')}-${dmY[1].padStart(2,'0')}`;
+      const d = new Date(v);
+      if (!isNaN(d)) return d.toISOString().slice(0,10);
+      return null;
+    } catch { return null; }
+  };
+
+  // State để forward-fill "Tên BV" (đơn vị đấu thầu)
+  let lastDonVi = '';
+  return rows
+    .filter(r => {
+      const mh = String(r[col('matHang')] || '').trim();
+      const bv = String(r[colDonViDauThau] || '').trim();
+      const pb = String(r[colBVPhanBo] || '').trim();
+      // Bỏ dòng tổng cộng, dòng header, dòng trống
+      if (!mh && !bv) return false;
+      if (bv.toLowerCase().startsWith('cộng') || bv.toLowerCase().startsWith('cong') || bv.toLowerCase().startsWith('tổng') || bv.toLowerCase().startsWith('tong')) return false;
+      if (!mh) return false;
+      return true;
+    })
+    .map(r => {
+      // Forward-fill đơn vị đấu thầu
+      const dvRaw = String(r[colDonViDauThau] || '').trim();
+      if (dvRaw && !dvRaw.toLowerCase().startsWith('cộng') && !dvRaw.toLowerCase().startsWith('cong')) lastDonVi = dvRaw;
+      const donViDauThau = lastDonVi;
+
+      const bvPhanBo = String(r[colBVPhanBo] || '').trim() || donViDauThau;
+      const slTrung  = sn(r[col('slTrung')]);
+      const slDaGiao = sn(r[col('slDaGiao')]);
+      const donGia   = sn(r[col('donGia')]);
+      const ngayKy   = sd(r[col('ngayKy')]);
+      const ngayKetThuc = sd(r[col('ngayKetThuc')]);
+      let totalDays = null, daysGone = null, daysLeft = null, timesGone = null;
+      if (ngayKy && ngayKetThuc) {
+        const ky = new Date(ngayKy), kt = new Date(ngayKetThuc);
+        totalDays = Math.round((kt - ky) / 86400000);
+        daysGone  = Math.round((TODAY - ky) / 86400000);
+        daysLeft  = Math.round((kt - TODAY) / 86400000);
+        if (totalDays > 0) timesGone = Math.round(daysGone / totalDays * 1000) / 10;
+      }
+      const pctThucHien = slTrung > 0 ? slDaGiao / slTrung : 0;
+      return {
+        donViDauThau,
+        bvPhanBo,
+        matHang: String(r[col('matHang')] || '').trim(),
+        slTrung, slDaGiao, donGia,
+        conLai: sn(r[col('conLai')]),
+        giaTriHD: slTrung * donGia,
+        giaTriThucHien: slDaGiao * donGia,
+        ngayKy, ngayKetThuc, totalDays, daysGone, daysLeft, timesGone,
+        pctThucHien,
+        canhBao: String(r[col('canhBao')] || '').trim(),
+      };
+    });
+}
+
+// ── MULTI-SELECT BV (generic) ──
+const _selectedBVs = { hcm: new Set(), tinh: new Set(), qg: new Set(), rr: new Set() };
+const _collapsed = { hcm: {}, tinh: {}, qg: {}, rr: {} };
+
+function getBVList(tab) {
+  if (tab === 'hcm') return [...new Set(allDataHCM.map(r => r.bv))].sort((a,b) => a.localeCompare(b,'vi'));
+  if (tab === 'tinh') return [...new Set(allDataTinh.map(r => r.donViDauThau))].sort((a,b) => a.localeCompare(b,'vi'));
+  if (tab === 'qg') return [...new Set(allDataQG.map(r => r.matHang))].sort((a,b) => a.localeCompare(b,'vi'));
+  return [...new Set(allDataRR.map(r => r.bv))].sort((a,b) => a.localeCompare(b,'vi'));
+}
+
+function refreshBVSel(tab) {
+  const bvs = getBVList(tab);
+  _selectedBVs[tab] = new Set([..._selectedBVs[tab]].filter(b => bvs.includes(b)));
+  renderMsBVList(tab, bvs);
+  updateMsBVBtn(tab);
+}
+
+function renderMsBVList(tab, bvs, filterStr) {
+  const list = document.getElementById('ms-bv-list-' + tab);
+  const q = (filterStr || '').toLowerCase();
+  const filtered = q ? bvs.filter(b => b.toLowerCase().includes(q)) : bvs;
+  if (!filtered.length) { list.innerHTML = '<div class="ms-empty">Không tìm thấy</div>'; return; }
+  list.innerHTML = filtered.map(b => {
+    const checked = _selectedBVs[tab].has(b) ? 'checked' : '';
+    const esc = b.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return `<label class="ms-item"><input type="checkbox" ${checked} onchange="toggleBV('${tab}','${esc}',this.checked)"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b}</span></label>`;
+  }).join('');
+}
+
+function filterMsBV(tab) {
+  const q = document.getElementById('ms-bv-search-' + tab).value;
+  renderMsBVList(tab, getBVList(tab), q);
+}
+
+function toggleBV(tab, bv, checked) {
+  if (checked) _selectedBVs[tab].add(bv); else _selectedBVs[tab].delete(bv);
+  updateMsBVBtn(tab);
+  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : tab === 'qg' ? renderQG() : renderRR();
+}
+
+function selectAllBV(tab) {
+  getBVList(tab).forEach(b => _selectedBVs[tab].add(b));
+  const q = document.getElementById('ms-bv-search-' + tab).value;
+  renderMsBVList(tab, getBVList(tab), q);
+  updateMsBVBtn(tab);
+  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : tab === 'qg' ? renderQG() : renderRR();
+}
+
+function clearAllBV(tab) {
+  _selectedBVs[tab].clear();
+  const q = document.getElementById('ms-bv-search-' + tab).value;
+  renderMsBVList(tab, getBVList(tab), q);
+  updateMsBVBtn(tab);
+  tab === 'hcm' ? renderHCM() : tab === 'tinh' ? renderTinh() : tab === 'qg' ? renderQG() : renderRR();
+}
+
+function updateMsBVBtn(tab) {
+  const badge = document.getElementById('ms-bv-badge-' + tab);
+  const label = document.getElementById('ms-bv-label-' + tab);
+  const n = _selectedBVs[tab].size;
+  const allLabel = tab === 'tinh' ? '-- Tất cả đơn vị --' : tab === 'qg' ? '-- Tất cả mặt hàng --' : '-- Tất cả bệnh viện --';
+  if (n === 0) { badge.style.display='none'; label.textContent=allLabel; }
+  else if (n === 1) { badge.style.display='none'; label.textContent=[..._selectedBVs[tab]][0]; }
+  else { badge.textContent=n; badge.style.display=''; label.textContent=`${n} đơn vị`; }
+}
+
+function toggleMsBV(tab, e) {
+  e.stopPropagation();
+  // Close other dropdowns
+  document.querySelectorAll('.ms-wrap').forEach(w => {
+    if (w.id !== 'ms-bv-wrap-' + tab) w.classList.remove('open');
+  });
+  document.getElementById('ms-bv-wrap-' + tab).classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  document.querySelectorAll('.ms-wrap').forEach(w => {
+    if (!w.contains(e.target)) w.classList.remove('open');
+  });
+});
+
+// ── TOGGLE GROUP ──
+function toggleGroup(tab, bvKey) {
+  _collapsed[tab][bvKey] = !_collapsed[tab][bvKey];
+  const icon = document.getElementById('toggle-icon-' + tab + '-' + bvKey);
+  if (icon) icon.style.transform = _collapsed[tab][bvKey] ? 'rotate(-90deg)' : '';
+  document.querySelectorAll(`tr[data-tab="${tab}"][data-grp="${bvKey}"]`).forEach(tr => {
+    tr.style.display = _collapsed[tab][bvKey] ? 'none' : '';
+  });
+}
+
+function toggleAll(tab) {
+  const btn = document.getElementById('btn-collapse-' + tab);
+  const allKeys = Object.keys(window._allBvKeys && window._allBvKeys[tab] || {});
+  const anyOpen = allKeys.some(k => !_collapsed[tab][k]);
+  allKeys.forEach(k => {
+    _collapsed[tab][k] = anyOpen;
+    const icon = document.getElementById('toggle-icon-' + tab + '-' + k);
+    if (icon) icon.style.transform = anyOpen ? 'rotate(-90deg)' : '';
+    document.querySelectorAll(`tr[data-tab="${tab}"][data-grp="${k}"]`).forEach(tr => {
+      tr.style.display = anyOpen ? 'none' : '';
+    });
+  });
+  btn.textContent = anyOpen ? '⊞ Xổ tất cả' : '⊟ Gom tất cả';
+}
+
+// ── FILTER HELPER ──
+function applyFilter(rows, tab) {
+  const fWarn = document.getElementById('sel-warn-' + tab).value;
+  const fSearch = (document.getElementById('search-input-' + tab).value || '').toLowerCase().trim();
+  return rows.filter(r => {
+    const searchTarget = tab === 'tinh'
+      ? (r.matHang + ' ' + r.donViDauThau + ' ' + r.bvPhanBo).toLowerCase()
+      : tab === 'qg'
+      ? (r.matHang + ' ' + r.bv).toLowerCase()
+      : (r.matHang + ' ' + r.bv).toLowerCase();
+    // For qg: filter by matHang (group key); for others: by bv/donViDauThau
+    if (_selectedBVs[tab].size > 0) {
+      const key = tab === 'tinh' ? r.donViDauThau : tab === 'qg' ? r.matHang : r.bv;
+      if (!_selectedBVs[tab].has(key)) return false;
+    }
+    if (fSearch && !searchTarget.includes(fSearch)) return false;
+    if (fWarn) {
+      const wl = warnLevel(r);
+      if (fWarn === 'red' && wl !== 'red' && wl !== 'expired') return false;
+      if (fWarn === 'yellow' && wl !== 'yellow') return false;
+      if (fWarn === 'green' && wl !== 'green') return false;
+      if (fWarn === 'done' && wl !== 'done') return false;
+      if (fWarn === 'tre') {
+        if (wl === 'done' || wl === 'expired') return false;
+        if (r.timesGone == null) return false;
+        const slPct = r.slTrung > 0 ? (r.slDaGiao / r.slTrung * 100) : 0;
+        if (!(r.timesGone > slPct + 10)) return false;
+      }
+      if (fWarn === 'chuagiao') {
+        if (wl === 'expired') return false;
+        if ((r.slDaGiao || 0) !== 0) return false;
+      }
+    }
+    return true;
+  });
+}
+
+// ── RENDER STATS (generic) ──
+function renderStats(rows, tab) {
+  const bvCount = tab === 'tinh'
+    ? new Set(rows.map(r => r.donViDauThau)).size
+    : new Set(rows.map(r => r.bv)).size;
+  const redCount = rows.filter(r => { const w = warnLevel(r); return w === 'red' || w === 'expired'; }).length;
+  const yellowCount = rows.filter(r => warnLevel(r) === 'yellow').length;
+  const totalGT = rows.reduce((s,r) => s + (r.giaTriHD||0), 0);
+  const totalThucHien = rows.reduce((s,r) => s + (r.giaTriThucHien||0), 0);
+  const treTienDoCount = rows.filter(r => {
+    const wl = warnLevel(r);
+    if (wl === 'done' || wl === 'expired') return false;
+    if (r.timesGone == null) return false;
+    const slPct = r.slTrung > 0 ? (r.slDaGiao / r.slTrung * 100) : 0;
+    return r.timesGone > slPct + 10;
+  }).length;
+  const chuaGiaoCount = rows.filter(r => {
+    if (warnLevel(r) === 'expired') return false;
+    return (r.slDaGiao || 0) === 0;
+  }).length;
+  const fWarn = document.getElementById('sel-warn-' + tab).value;
+  const unitLabel = tab === 'tinh' ? 'đơn vị đấu thầu' : 'bệnh viện';
+
+  document.getElementById('stats-row-' + tab).innerHTML = `
+    <div class="stat" onclick="setFilter('${tab}','')" style="${fWarn===''?'outline:2px solid #378ADD;':''}">
+      <div class="stat-label">Mặt hàng</div>
+      <div class="stat-val">${rows.length}</div>
+      <div class="stat-sub">${bvCount} ${unitLabel}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">GT Hợp đồng</div>
+      <div class="stat-val">${fmtM(totalGT)}</div>
+      <div class="stat-sub">GT thực hiện ${fmtM(totalThucHien)} (${totalGT>0?(totalThucHien/totalGT*100).toFixed(1):0}%)</div>
+    </div>
+    <div class="stat" onclick="setFilter('${tab}','red')" style="${fWarn==='red'?'outline:2px solid #C0392B;background:#FFF5F5':''}">
+      <div class="stat-label" style="color:#C0392B">⚠️ Sắp hết hạn &lt;60n</div>
+      <div class="stat-val" style="color:#C0392B">${redCount}</div>
+      <div class="stat-sub">mặt hàng</div>
+    </div>
+    <div class="stat" onclick="setFilter('${tab}','yellow')" style="${fWarn==='yellow'?'outline:2px solid #856404;background:#FFFDF0':''}">
+      <div class="stat-label" style="color:#856404">⏳ Cảnh báo 60–120n</div>
+      <div class="stat-val" style="color:#856404">${yellowCount}</div>
+      <div class="stat-sub">mặt hàng</div>
+    </div>
+    <div class="stat" onclick="setFilter('${tab}','tre')" style="${fWarn==='tre'?'outline:2px solid #8B3EBB;background:#F9F0FF':''}">
+      <div class="stat-label" style="color:#8B3EBB">⏱ Trễ tiến độ</div>
+      <div class="stat-val" style="color:#8B3EBB">${treTienDoCount}</div>
+      <div class="stat-sub">thời gian &gt; %SL +10%</div>
+    </div>
+    <div class="stat" onclick="setFilter('${tab}','chuagiao')" style="${fWarn==='chuagiao'?'outline:2px solid #D4537E;background:#FFF0F5':''}">
+      <div class="stat-label" style="color:#D4537E">📦 Chưa giao lần nào</div>
+      <div class="stat-val" style="color:#D4537E">${chuaGiaoCount}</div>
+      <div class="stat-sub">SL đã giao = 0</div>
+    </div>
+  `;
+}
+
+function setFilter(tab, v) {
+  document.getElementById('sel-warn-' + tab).value = v;
+  tab === 'hcm' ? renderHCM() : renderTinh();
+}
+
+// ── ROW HELPERS ──
+function makeCombinedCell(r) {
+  const sl = r.slTrung > 0 ? r.slDaGiao / r.slTrung : 0;
+  if (r.timesGone == null) return '';
+  const tgPct = Math.min(100, r.timesGone).toFixed(1);
+  const slPct = Math.min(100, sl * 100).toFixed(1);
+  const slColor = sl>=0.8?'#1D9E75':sl>=0.5?'#EF9F27':'#D4537E';
+  return `
+    <div style="font-size:10px;font-weight:600;display:flex;gap:4px;align-items:center">
+      <span style="color:${slColor}">${Math.round(sl*100)}%</span>
+      <span style="color:var(--text3)">|</span>
+      <span style="color:#D4537E;font-weight:700">${Math.round(r.timesGone)}%⏱</span>
+    </div>
+    <div class="tg-bar" style="width:70px;height:6px;border-radius:3px;position:relative;margin-top:1px">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:${tgPct}%;background:#D4537E;border-radius:3px"></div>
+      <div style="position:absolute;left:0;top:0;bottom:0;width:${slPct}%;background:#1D9E75;opacity:0.6;border-radius:3px"></div>
+    </div>`;
+}
+
+function makeDlBadge(r) {
+  const wl = warnLevel(r);
+  if (r.daysLeft == null) return '';
+  if (wl === 'expired') return `<span class="dlbadge red">Hết hạn</span>`;
+  if (wl === 'red') return `<span class="dlbadge red">⚠ ${r.daysLeft}n</span>`;
+  if (wl === 'yellow') return `<span class="dlbadge yellow">⏳ ${r.daysLeft}n</span>`;
+  if (wl === 'done') return `<span class="dlbadge green">✔ Xong</span>`;
+  return '';
+}
+
+function makeGroupSummaryTags(gRows, gSLTrung, gSLDaGiao, gGT, gTH) {
+  const gPct = gSLTrung > 0 ? (gSLDaGiao/gSLTrung*100).toFixed(0) : 0;
+  const tgRows = gRows.filter(r => r.timesGone != null);
+  const gTG = tgRows.length > 0 ? (tgRows.reduce((s,r) => s + r.timesGone, 0) / tgRows.length).toFixed(0) : null;
+  const redN = gRows.filter(r => { const w = warnLevel(r); return w === 'red' || w === 'expired'; }).length;
+  const warnIcon = redN > 0 ? `<span style="margin-left:6px;font-size:10px;padding:0 5px;border-radius:8px;background:#FEECEC;color:#C0392B;font-weight:600;border:1px solid #F5ACAC">⚠ ${redN}</span>` : '';
+  const slTgTag = gTG != null
+    ? `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#F0F4FF;color:#2C4A8A;font-weight:600;border:1px solid #B0C4E8">Thực hiện: ${gPct}% <span style="color:#B0B0B0;font-weight:400">|</span> Thời gian: <span style="color:#8B2252">${gTG}%</span></span>`
+    : `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#E4F5EE;color:#0D4D30;font-weight:600;border:1px solid #A3D9BC">Thực hiện: ${gPct}%</span>`;
+  const gtPctGrp = gGT > 0 ? (gTH/gGT*100).toFixed(0) : 0;
+  const gtColor = gtPctGrp >= 80 ? '#1D9E75' : gtPctGrp >= 50 ? '#EF9F27' : '#D4537E';
+  const gtTag = gGT > 0
+    ? `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#F5F5F5;color:${gtColor};font-weight:600;border:1px solid var(--border2)">${fmtM(gTH)} / ${fmtM(gGT)}</span>`
+    : '';
+  return { warnIcon, slTgTag, gtTag };
+}
+
+// ── RENDER HCM ──
+function renderHCM() {
+  refreshBVSel('hcm');
+  const filtered = applyFilter(allDataHCM, 'hcm');
+  renderStats(filtered, 'hcm');
+
+  const grouped = {};
+  filtered.forEach(r => { if (!grouped[r.bv]) grouped[r.bv] = []; grouped[r.bv].push(r); });
+
+  document.getElementById('tbl-head-hcm').innerHTML = `
+    <tr>
+      <th style="min-width:30px;max-width:45px">CTY</th>
+      <th class="pin-mat" style="left:0">Tên mặt hàng</th>
+      <th style="text-align:right;min-width:55px;border-left:1px solid var(--border2)">SL Ký HĐ</th>
+      <th style="text-align:right;min-width:90px;border-left:1px solid var(--border2)">SL Đã giao</th>
+      <th style="text-align:right;min-width:48px;border-left:1px solid var(--border2)">Còn lại</th>
+      <th style="text-align:right;min-width:70px;border-left:2px solid var(--border2)">Đơn giá</th>
+      <th style="text-align:right;min-width:78px;border-left:1px solid var(--border2)">GT HĐ</th>
+      <th style="text-align:right;min-width:82px;border-left:1px solid var(--border2)">Thực hiện</th>
+      <th style="text-align:center;min-width:95px;border-left:2px solid var(--border2)">Ngày</th>
+    </tr>`;
+
+  tipCache = [];
+  let html = '';
+
+  if (!Object.keys(grouped).length) {
+    html = `<tr><td colspan="9" class="no-data">📭 Không có dữ liệu phù hợp</td></tr>`;
+    document.getElementById('tbl-body-hcm').innerHTML = html;
+    return;
+  }
+
+  if (!window._allBvKeys) window._allBvKeys = {};
+  window._allBvKeys['hcm'] = Object.fromEntries(Object.keys(grouped).map(k => [encodeURIComponent(k), true]));
+
+  Object.keys(grouped).sort((a,b) => a.localeCompare(b,'vi')).forEach(bv => {
+    const gRows = grouped[bv];
+    const gSLTrung = gRows.reduce((s,r) => s + r.slTrung, 0);
+    const gSLDaGiao = gRows.reduce((s,r) => s + r.slDaGiao, 0);
+    const gGT = gRows.reduce((s,r) => s + r.giaTriHD, 0);
+    const gTH = gRows.reduce((s,r) => s + r.giaTriThucHien, 0);
+    const datesKy = gRows.map(r => r.ngayKy).filter(Boolean).sort();
+    const datesKT = gRows.map(r => r.ngayKetThuc).filter(Boolean).sort();
+    const gNgayKy = datesKy.length ? datesKy[0] : null;
+    const gNgayKT = datesKT.length ? datesKT[datesKT.length-1] : null;
+    const dateRange = (gNgayKy || gNgayKT)
+      ? `<span style="margin-left:6px;font-size:10px;color:var(--text2);font-weight:normal">${gNgayKy ? fmtDate(gNgayKy) : '?'} → ${gNgayKT ? fmtDate(gNgayKT) : '?'}</span>`
+      : '';
+    const { warnIcon, slTgTag, gtTag } = makeGroupSummaryTags(gRows, gSLTrung, gSLDaGiao, gGT, gTH);
+    const bvKey = encodeURIComponent(bv);
+
+    html += `<tr class="grp-hdr" style="cursor:pointer" onclick="toggleGroup('hcm','${bvKey}')">
+      <td colspan="9"><div class="grp-sticky">
+        <span id="toggle-icon-hcm-${bvKey}" style="font-size:11px;margin-right:2px;transition:transform .2s;display:inline-block">▾</span>
+        ${bv}${warnIcon}${dateRange}
+        <span class="grp-count">(${gRows.length} mặt hàng)</span>
+        ${slTgTag}${gtTag}
+      </div></td>
+    </tr>`;
+
+    gRows.forEach(r => {
+      const wl = warnLevel(r);
+      const sl = r.slTrung > 0 ? r.slDaGiao / r.slTrung : 0;
+      const combinedCell = makeCombinedCell(r);
+      const dlBadge = makeDlBadge(r);
+      const rowCls = wl === 'red' || wl === 'expired' ? 'warn-red' : wl === 'yellow' ? 'warn-yellow' : '';
+      const tipIdx = tipCache.length;
+      tipCache.push({ ...r, _tab: 'hcm' });
+
+      html += `<tr class="${rowCls}" data-tab="hcm" data-grp="${bvKey}" onmouseenter="showTip(event,${tipIdx})" onmouseleave="hideTip()" onmousemove="moveTip(event)">
+        <td style="font-size:11px;color:var(--text2);max-width:45px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.congTy||''}</td>
+        <td class="pin-mat" style="left:0;padding-left:25px">
+          <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+            <span>${r.matHang}</span>
+            ${dlBadge ? `<span style="flex-shrink:0">${dlBadge}</span>` : ''}
+          </div>
+          ${r.tang ? `<span style="font-size:9px;color:#0C447C">📈 ${r.tang}</span>` : ''}
+        </td>
+        <td class="num" style="border-left:1px solid var(--border)">${fmtN(r.slTrung)}</td>
+        <td class="num" style="color:#1D9E75;font-weight:600;vertical-align:middle;border-left:1px solid var(--border)">
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+            <span>${fmtN(r.slDaGiao)}</span>${combinedCell}
+          </div>
+        </td>
+        <td class="num" style="color:${r.conLai > 0 ? '#EF9F27' : 'var(--text3)'};border-left:1px solid var(--border)">${fmtN(r.conLai)}</td>
+        <td class="num" style="border-left:2px solid var(--border2)">${fmtN(r.donGia)}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${fmtM(r.giaTriHD)}</td>
+        <td class="num" style="color:#1D9E75;border-left:1px solid var(--border)">${fmtM(r.giaTriThucHien)}</td>
+        <td class="center" style="border-left:2px solid var(--border2);min-width:95px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.4">
+            <span style="color:${wl==='red'||wl==='expired'?'#C0392B':wl==='yellow'?'#856404':'var(--text2)'};font-weight:${wl==='red'||wl==='expired'?'600':'400'};font-size:12px">${fmtDate(r.ngayKetThuc)}</span>
+            <span style="font-size:9px;color:var(--text3)">ký: ${fmtDate(r.ngayKy)}</span>
+          </div>
+        </td>
+      </tr>`;
+    });
+  });
+
+  document.getElementById('tbl-body-hcm').innerHTML = html;
+  window._tipCache = tipCache;
+}
+
+// ── RENDER TỈNH ──
+function renderTinh() {
+  refreshBVSel('tinh');
+  const filtered = applyFilter(allDataTinh, 'tinh');
+  renderStats(filtered, 'tinh');
+
+  // Group by đơn vị đấu thầu → sub-group by BV phân bổ
+  const grouped = {}; // { donViDauThau: { bvPhanBo: [rows] } }
+  filtered.forEach(r => {
+    if (!grouped[r.donViDauThau]) grouped[r.donViDauThau] = {};
+    const sub = grouped[r.donViDauThau];
+    if (!sub[r.bvPhanBo]) sub[r.bvPhanBo] = [];
+    sub[r.bvPhanBo].push(r);
+  });
+
+  document.getElementById('tbl-head-tinh').innerHTML = `
+    <tr>
+      <th class="pin-mat" style="left:0;min-width:170px;max-width:170px">Tên mặt hàng</th>
+      <th style="text-align:right;min-width:55px;border-left:1px solid var(--border2)">SL Ký HĐ</th>
+      <th style="text-align:right;min-width:90px;border-left:1px solid var(--border2)">SL Đã giao</th>
+      <th style="text-align:right;min-width:48px;border-left:1px solid var(--border2)">Còn lại</th>
+      <th style="text-align:right;min-width:70px;border-left:2px solid var(--border2)">Đơn giá</th>
+      <th style="text-align:right;min-width:78px;border-left:1px solid var(--border2)">GT HĐ</th>
+      <th style="text-align:right;min-width:82px;border-left:1px solid var(--border2)">Thực hiện</th>
+      <th style="text-align:center;min-width:95px;border-left:2px solid var(--border2)">Ngày</th>
+    </tr>`;
+
+  tipCache = [];
+  let html = '';
+
+  if (!Object.keys(grouped).length) {
+    html = `<tr><td colspan="8" class="no-data">📭 Không có dữ liệu phù hợp</td></tr>`;
+    document.getElementById('tbl-body-tinh').innerHTML = html;
+    return;
+  }
+
+  if (!window._allBvKeys) window._allBvKeys = {};
+  window._allBvKeys['tinh'] = Object.fromEntries(Object.keys(grouped).map(k => [encodeURIComponent(k), true]));
+
+  Object.keys(grouped).sort((a,b) => a.localeCompare(b,'vi')).forEach(donVi => {
+    const subGroups = grouped[donVi];
+    // Tất cả rows trong đơn vị
+    const allGRows = Object.values(subGroups).flat();
+    const gSLTrung = allGRows.reduce((s,r) => s + r.slTrung, 0);
+    const gSLDaGiao = allGRows.reduce((s,r) => s + r.slDaGiao, 0);
+    const gGT = allGRows.reduce((s,r) => s + r.giaTriHD, 0);
+    const gTH = allGRows.reduce((s,r) => s + r.giaTriThucHien, 0);
+    const datesKy = allGRows.map(r => r.ngayKy).filter(Boolean).sort();
+    const datesKT = allGRows.map(r => r.ngayKetThuc).filter(Boolean).sort();
+    const gNgayKy = datesKy.length ? datesKy[0] : null;
+    const gNgayKT = datesKT.length ? datesKT[datesKT.length-1] : null;
+    const dateRange = (gNgayKy || gNgayKT)
+      ? `<span style="margin-left:6px;font-size:10px;color:var(--text2);font-weight:normal">${gNgayKy ? fmtDate(gNgayKy) : '?'} → ${gNgayKT ? fmtDate(gNgayKT) : '?'}</span>`
+      : '';
+    const { warnIcon, slTgTag, gtTag } = makeGroupSummaryTags(allGRows, gSLTrung, gSLDaGiao, gGT, gTH);
+    const dvKey = encodeURIComponent(donVi);
+    const totalBVPhanBo = Object.keys(subGroups).length;
+
+    // Số BV phân bổ
+    const bvPBLabel = totalBVPhanBo > 1
+      ? `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#FFF8E6;color:#7D5A00;font-weight:600;border:1px solid #FFDA6A">🏥 ${totalBVPhanBo} BV phân bổ</span>`
+      : '';
+
+    html += `<tr class="grp-hdr" style="cursor:pointer" onclick="toggleGroup('tinh','${dvKey}')">
+      <td colspan="8"><div class="grp-sticky">
+        <span id="toggle-icon-tinh-${dvKey}" style="font-size:11px;margin-right:2px;transition:transform .2s;display:inline-block">▾</span>
+        ${donVi}${warnIcon}${dateRange}
+        <span class="grp-count">(${allGRows.length} mặt hàng)</span>
+        ${bvPBLabel}${slTgTag}${gtTag}
+      </div></td>
+    </tr>`;
+
+    // Sub-groups: từng BV phân bổ — luôn hiển thị sub-header
+    Object.keys(subGroups).sort((a,b) => a.localeCompare(b,'vi')).forEach(bvPB => {
+      const subRows = subGroups[bvPB];
+      const subSLTrung = subRows.reduce((s,r) => s + r.slTrung, 0);
+      const subSLDaGiao = subRows.reduce((s,r) => s + r.slDaGiao, 0);
+      const subSLPct = subSLTrung > 0 ? (subSLDaGiao/subSLTrung*100).toFixed(0) : 0;
+      const subRedN = subRows.filter(r => { const w = warnLevel(r); return w === 'red' || w === 'expired'; }).length;
+      const subWarnIcon = subRedN > 0 ? `<span style="margin-left:4px;font-size:9px;padding:0 4px;border-radius:6px;background:#FEECEC;color:#C0392B;font-weight:700;border:1px solid #F5ACAC">⚠ ${subRedN}</span>` : '';
+
+      html += `<tr class="subgrp-hdr" data-tab="tinh" data-grp="${dvKey}">
+        <td colspan="8"><div class="subgrp-sticky">
+          🏥 ${bvPB}${subWarnIcon}
+          <span style="font-size:10px;color:var(--text3);font-weight:400">(${subRows.length} mặt hàng • ${fmtN(subSLTrung)} sl • thực hiện ${subSLPct}%)</span>
+        </div></td>
+      </tr>`;
+
+      subRows.forEach(r => {
+        const wl = warnLevel(r);
+        const combinedCell = makeCombinedCell(r);
+        const dlBadge = makeDlBadge(r);
+        const rowCls = wl === 'red' || wl === 'expired' ? 'warn-red' : wl === 'yellow' ? 'warn-yellow' : '';
+        const tipIdx = tipCache.length;
+        tipCache.push({ ...r, _tab: 'tinh' });
+
+        html += `<tr class="${rowCls}" data-tab="tinh" data-grp="${dvKey}" onmouseenter="showTip(event,${tipIdx})" onmouseleave="hideTip()" onmousemove="moveTip(event)">
+          <td class="pin-mat" style="left:0;padding-left:40px">
+            <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+              <span>${r.matHang}</span>
+              ${dlBadge ? `<span style="flex-shrink:0">${dlBadge}</span>` : ''}
+            </div>
+          </td>
+          <td class="num" style="border-left:1px solid var(--border)">${fmtN(r.slTrung)}</td>
+          <td class="num" style="color:#1D9E75;font-weight:600;vertical-align:middle;border-left:1px solid var(--border)">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+              <span>${fmtN(r.slDaGiao)}</span>${combinedCell}
+            </div>
+          </td>
+          <td class="num" style="color:${r.conLai > 0 ? '#EF9F27' : 'var(--text3)'};border-left:1px solid var(--border)">${fmtN(r.conLai)}</td>
+          <td class="num" style="border-left:2px solid var(--border2)">${fmtN(r.donGia)}</td>
+          <td class="num" style="border-left:1px solid var(--border)">${fmtM(r.giaTriHD)}</td>
+          <td class="num" style="color:#1D9E75;border-left:1px solid var(--border)">${fmtM(r.giaTriThucHien)}</td>
+          <td class="center" style="border-left:2px solid var(--border2);min-width:95px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.4">
+              <span style="color:${wl==='red'||wl==='expired'?'#C0392B':wl==='yellow'?'#856404':'var(--text2)'};font-weight:${wl==='red'||wl==='expired'?'600':'400'};font-size:12px">${fmtDate(r.ngayKetThuc)}</span>
+              <span style="font-size:9px;color:var(--text3)">ký: ${fmtDate(r.ngayKy)}</span>
+            </div>
+          </td>
+        </tr>`;
+      });
+    });
+  });
+
+  document.getElementById('tbl-body-tinh').innerHTML = html;
+  window._tipCache = tipCache;
+}
+
+// ── PARSE QUỐC GIA ──
+function parseRowsQG(rows) {
+  const hdr = rows.length ? Object.keys(rows[0]) : [];
+  // QG sheet cố định: col 0=STT, col 1=BV, col 2=matHang, col 3=SLTrung,
+  //                    col 4=SLDaGiao, col 5=conLai, col 6=GIÁ, col 7=ngayKy,
+  //                    col 8=ngayKetThuc, col 9=ghiChu
+  const colBV  = hdr[1];
+  const colMH  = hdr[2];
+  const colSLT = hdr[3];
+  const colSLG = hdr[4];
+  const colCL  = hdr[5];
+  const colGia = hdr[6];   // "GIÁ"
+  const colNK  = hdr[7];
+  const colNKT = hdr[8];
+  const colGC  = hdr[9];
+
+  const sn = v => { try { if (v===''||v==null) return 0; return parseFloat(String(v).replace(/[^\d.-]/g,''))||0; } catch{return 0;} };
+  const sd = v => {
+    try {
+      if (!v) return null;
+      const s = String(v).trim();
+      const dmY = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmY) return `${dmY[3]}-${dmY[2].padStart(2,'0')}-${dmY[1].padStart(2,'0')}`;
+      const d = new Date(v);
+      if (!isNaN(d)) return d.toISOString().slice(0,10);
+      return null;
+    } catch{return null;}
+  };
+
+  return rows.filter(r => {
+    const bvVal = String(r[colBV]||'').trim();
+    const mhVal = String(r[colMH]||'').trim();
+    if (!bvVal && !mhVal) return false;
+    if (bvVal.toLowerCase().includes('tổng') || bvVal.toLowerCase().includes('tong')) return false;
+    if (bvVal === 'BV ĐƯỢC PHÂN BỔ' || bvVal === 'STT') return false;
+    if (!mhVal || !bvVal) return false;
+    return true;
+  }).map(r => {
+    const slTrung   = sn(r[colSLT]);
+    const slDaGiao  = sn(r[colSLG]);
+    const donGia    = sn(r[colGia]);
+    const ngayKy    = sd(r[colNK]);
+    const ngayKetThuc = sd(r[colNKT]);
+    let totalDays=null,daysGone=null,daysLeft=null,timesGone=null;
+    if (ngayKy && ngayKetThuc) {
+      const ky=new Date(ngayKy), kt=new Date(ngayKetThuc);
+      totalDays=Math.round((kt-ky)/86400000);
+      daysGone=Math.round((TODAY-ky)/86400000);
+      daysLeft=Math.round((kt-TODAY)/86400000);
+      if (totalDays>0) timesGone=Math.round(daysGone/totalDays*1000)/10;
+    }
+    const pctThucHien = slTrung>0 ? slDaGiao/slTrung : 0;
+    return {
+      bv:      String(r[colBV]||'').trim(),
+      matHang: String(r[colMH]||'').trim(),
+      slTrung, slDaGiao, donGia,
+      conLai:  sn(r[colCL]),
+      giaTriHD: slTrung*donGia,
+      giaTriThucHien: slDaGiao*donGia,
+      ngayKy, ngayKetThuc, totalDays, daysGone, daysLeft, timesGone,
+      pctThucHien,
+      ghiChu: String(r[colGC]||'').trim(),
+    };
+  });
+}
+
+// ── RENDER QUỐC GIA ──
+function renderQG() {
+  refreshBVSel('qg');
+  const filtered = applyFilter(allDataQG, 'qg');
+
+  // Stats
+  const bvCount = new Set(filtered.map(r => r.bv)).size;
+  const mhCount = new Set(filtered.map(r => r.matHang)).size;
+  const totalSLTrung = filtered.reduce((s,r)=>s+r.slTrung,0);
+  const totalSLDaGiao = filtered.reduce((s,r)=>s+r.slDaGiao,0);
+  const totalGT = filtered.reduce((s,r)=>s+r.giaTriHD,0);
+  const totalTH = filtered.reduce((s,r)=>s+r.giaTriThucHien,0);
+  const chuaGiaoCount = filtered.filter(r => { if(warnLevel(r)==='expired') return false; return (r.slDaGiao||0)===0; }).length;
+  const fWarn = document.getElementById('sel-warn-qg').value;
+
+  document.getElementById('stats-row-qg').innerHTML = `
+    <div class="stat" onclick="setFilter('qg','')" style="${fWarn===''?'outline:2px solid #378ADD;':''}">
+      <div class="stat-label">Bệnh viện</div>
+      <div class="stat-val">${bvCount}</div>
+      <div class="stat-sub">${mhCount} mặt hàng</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">SL Trúng thầu</div>
+      <div class="stat-val">${fmtN(totalSLTrung)}</div>
+      <div class="stat-sub">Đã giao ${fmtN(totalSLDaGiao)} (${totalSLTrung>0?(totalSLDaGiao/totalSLTrung*100).toFixed(1):0}%)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">GT Hợp đồng</div>
+      <div class="stat-val">${fmtM(totalGT)}</div>
+      <div class="stat-sub">Thực hiện ${fmtM(totalTH)} (${totalGT>0?(totalTH/totalGT*100).toFixed(1):0}%)</div>
+    </div>
+    <div class="stat" onclick="setFilter('qg','done')" style="${fWarn==='done'?'outline:2px solid #0D4D30;background:#E4F5EE':''}">
+      <div class="stat-label" style="color:#0D4D30">✔ Hoàn thành</div>
+      <div class="stat-val" style="color:#0D4D30">${filtered.filter(r=>warnLevel(r)==='done').length}</div>
+      <div class="stat-sub">SL = 100%</div>
+    </div>
+    <div class="stat" onclick="setFilter('qg','chuagiao')" style="${fWarn==='chuagiao'?'outline:2px solid #D4537E;background:#FFF0F5':''}">
+      <div class="stat-label" style="color:#D4537E">📦 Chưa giao lần nào</div>
+      <div class="stat-val" style="color:#D4537E">${chuaGiaoCount}</div>
+      <div class="stat-sub">SL đã giao = 0</div>
+    </div>
+  `;
+
+  // Group by matHang
+  const grouped = {};
+  filtered.forEach(r => { if(!grouped[r.matHang]) grouped[r.matHang]=[]; grouped[r.matHang].push(r); });
+
+  document.getElementById('tbl-head-qg').innerHTML = `
+    <tr>
+      <th class="pin-mat" style="left:0;min-width:180px;max-width:180px">Bệnh viện</th>
+      <th style="text-align:right;min-width:70px;border-left:1px solid var(--border2)">SL Ký HĐ</th>
+      <th style="text-align:right;min-width:90px;border-left:1px solid var(--border2)">SL Đã giao</th>
+      <th style="text-align:right;min-width:55px;border-left:1px solid var(--border2)">Còn lại</th>
+      <th style="text-align:right;min-width:70px;border-left:2px solid var(--border2)">Đơn giá</th>
+      <th style="text-align:right;min-width:82px;border-left:1px solid var(--border2)">GT HĐ</th>
+      <th style="text-align:right;min-width:82px;border-left:1px solid var(--border2)">Thực hiện</th>
+      <th style="text-align:center;min-width:95px;border-left:2px solid var(--border2)">Ngày</th>
+    </tr>`;
+
+  tipCache = [];
+  let html = '';
+
+  if (!Object.keys(grouped).length) {
+    html = `<tr><td colspan="8" class="no-data">📭 Không có dữ liệu phù hợp</td></tr>`;
+    document.getElementById('tbl-body-qg').innerHTML = html;
+    return;
+  }
+
+  if (!window._allBvKeys) window._allBvKeys = {};
+  window._allBvKeys['qg'] = Object.fromEntries(Object.keys(grouped).map(k => [encodeURIComponent(k), true]));
+
+  Object.keys(grouped).sort((a,b) => a.localeCompare(b,'vi')).forEach(matHang => {
+    const gRows = grouped[matHang];
+    const gSLTrung  = gRows.reduce((s,r)=>s+r.slTrung,0);
+    const gSLDaGiao = gRows.reduce((s,r)=>s+r.slDaGiao,0);
+    const gGT  = gRows.reduce((s,r)=>s+r.giaTriHD,0);
+    const gTH  = gRows.reduce((s,r)=>s+r.giaTriThucHien,0);
+    const gPct = gSLTrung>0 ? (gSLDaGiao/gSLTrung*100).toFixed(0) : 0;
+    const redN = gRows.filter(r=>{ const w=warnLevel(r); return w==='red'||w==='expired'; }).length;
+    const warnIcon = redN>0 ? `<span style="margin-left:6px;font-size:10px;padding:0 5px;border-radius:8px;background:#FEECEC;color:#C0392B;font-weight:600;border:1px solid #F5ACAC">⚠ ${redN}</span>` : '';
+    const gtColor = gGT>0 ? ((gTH/gGT)>=0.8?'#1D9E75':(gTH/gGT)>=0.5?'#EF9F27':'#D4537E') : 'var(--text3)';
+    const summaryTag = `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#F0F4FF;color:#2C4A8A;font-weight:600;border:1px solid #B0C4E8">${gRows.length} BV • SL: ${fmtN(gSLTrung)} • Thực hiện: ${gPct}%</span>`;
+    const gtTag = gGT>0 ? `<span style="margin-left:4px;font-size:10px;padding:0 6px;border-radius:8px;background:#F5F5F5;color:${gtColor};font-weight:600;border:1px solid var(--border2)">${fmtM(gTH)} / ${fmtM(gGT)}</span>` : '';
+    const mhKey = encodeURIComponent(matHang);
+
+    html += `<tr class="grp-hdr" style="cursor:pointer" onclick="toggleGroup('qg','${mhKey}')">
+      <td colspan="8"><div class="grp-sticky">
+        <span id="toggle-icon-qg-${mhKey}" style="font-size:11px;margin-right:2px;transition:transform .2s;display:inline-block">▾</span>
+        <span style="font-weight:700;color:var(--text)">${matHang}</span>${warnIcon}${summaryTag}${gtTag}
+      </div></td>
+    </tr>`;
+
+    // Sort BVs by SL trúng desc
+    gRows.sort((a,b) => b.slTrung - a.slTrung).forEach(r => {
+      const wl = warnLevel(r);
+      const sl = r.slTrung>0 ? r.slDaGiao/r.slTrung : 0;
+      const combinedCell = makeCombinedCell(r);
+      const dlBadge = makeDlBadge(r);
+      const rowCls = wl==='red'||wl==='expired' ? 'warn-red' : wl==='yellow' ? 'warn-yellow' : '';
+      const tipIdx = tipCache.length;
+      tipCache.push({...r, _tab:'qg'});
+
+      html += `<tr class="${rowCls}" data-tab="qg" data-grp="${mhKey}" onmouseenter="showTip(event,${tipIdx})" onmouseleave="hideTip()" onmousemove="moveTip(event)">
+        <td class="pin-mat" style="left:0;padding-left:25px;font-size:13px;font-weight:500">
+          <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+            <span>${r.bv}</span>
+            ${dlBadge ? `<span style="flex-shrink:0">${dlBadge}</span>` : ''}
+          </div>
+          ${r.ghiChu ? `<div style="font-size:9px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px" title="${r.ghiChu}">📝 ${r.ghiChu.slice(0,60)}${r.ghiChu.length>60?'…':''}</div>` : ''}
+        </td>
+        <td class="num" style="border-left:1px solid var(--border)">${fmtN(r.slTrung)}</td>
+        <td class="num" style="color:#1D9E75;font-weight:600;vertical-align:middle;border-left:1px solid var(--border)">
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+            <span>${fmtN(r.slDaGiao)}</span>${combinedCell}
+          </div>
+        </td>
+        <td class="num" style="color:${r.conLai>0?'#EF9F27':'var(--text3)'};border-left:1px solid var(--border)">${fmtN(r.conLai)}</td>
+        <td class="num" style="border-left:2px solid var(--border2)">${fmtN(r.donGia)}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${fmtM(r.giaTriHD)}</td>
+        <td class="num" style="color:#1D9E75;border-left:1px solid var(--border)">${fmtM(r.giaTriThucHien)}</td>
+        <td class="center" style="border-left:2px solid var(--border2);min-width:95px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.4">
+            <span style="color:${wl==='red'||wl==='expired'?'#C0392B':wl==='yellow'?'#856404':'var(--text2)'};font-weight:${wl==='red'||wl==='expired'?'600':'400'};font-size:12px">${fmtDate(r.ngayKetThuc)}</span>
+            <span style="font-size:9px;color:var(--text3)">ký: ${fmtDate(r.ngayKy)}</span>
+          </div>
+        </td>
+      </tr>`;
+    });
+  });
+
+  document.getElementById('tbl-body-qg').innerHTML = html;
+  window._tipCache = tipCache;
+}
+
+// ── PARSE THẦU RR (Chờ kết quả) ──
+function parseRowsRR(rows) {
+  const hdr = rows.length ? Object.keys(rows[0]) : [];
+  // Sheet "Thầu RR (TP.HCM)" header row 1 (0-indexed):
+  // [0]=Năm KQ, [1]=Năm đóng thầu, [2]=check, [3]=TT dự thầu, [4]=TT trúng thầu,
+  // [5]=ĐiểmKT BMT, [6]=ĐiểmKT NT, [7]=Hàng cạnh tranh,
+  // [8]=Tên bệnh viện, [9]=Tên mặt hàng, [10]=Số lượng dự thầu,
+  // [11]=Giá dự thầu, [12]=Thành tiền, [13]=Công ty thầu,
+  // [14]=Kết quả trúng thầu, [15]=Thời điểm đóng thầu,
+  // [16]=Ngày có KQ thầu, [17]=Người làm thầu
+  const colNamKQ  = hdr[0];
+  const colBV     = hdr[8];
+  const colMH     = hdr[9];
+  const colSL     = hdr[10];
+  const colGia    = hdr[11];
+  const colCty    = hdr[13];
+  const colKQ     = hdr[14];
+  const colNgay   = hdr[15];  // Thời điểm đóng thầu
+  const colNgayKQ = hdr[16];  // Ngày có KQ — null = chưa có kết quả
+  const colNguoi  = hdr[17];
+
+  const sn = v => { try { if(v===''||v==null) return 0; return parseFloat(String(v).replace(/[^\d.-]/g,''))||0; } catch{return 0;} };
+  const sd = v => {
+    try {
+      if (!v || String(v).trim() === '' || String(v).trim() === 'NaT') return null;
+      const s = String(v).trim();
+      const dmY = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmY) return `${dmY[3]}-${dmY[2].padStart(2,'0')}-${dmY[1].padStart(2,'0')}`;
+      const d = new Date(v);
+      if (!isNaN(d) && d.getFullYear() > 2000) return d.toISOString().slice(0,10);
+      return null;
+    } catch{return null;}
+  };
+  const isBlank = v => !v || String(v).trim() === '' || String(v).trim().toLowerCase() === 'nan' || String(v).trim() === 'NaT';
+
+  // Forward-fill ngayDongThau và ngayCoKQ theo nhóm BV
+  // (merged cells: chỉ dòng đầu mỗi BV có giá trị)
+  let lastBV = '', lastNgayDong = null, lastNgayKQ = null;
+
+  return rows
+    .filter(r => {
+      const namKQ = sn(r[colNamKQ]);
+      const bv = String(r[colBV]||'').trim();
+      const mh = String(r[colMH]||'').trim();
+      // Chỉ lấy năm 2026, có mặt hàng, không phải dòng tổng
+      if (Math.round(namKQ) !== 2026) return false;
+      if (!bv || !mh) return false;
+      if (bv.toLowerCase().startsWith('cộng') || bv.toLowerCase().startsWith('cong')) return false;
+      return true;
+    })
+    .map(r => {
+      const bv = String(r[colBV]||'').trim();
+
+      // Forward-fill: reset khi sang BV mới
+      if (bv !== lastBV) {
+        lastBV = bv;
+        lastNgayDong = null;
+        lastNgayKQ   = null;
+      }
+      // Cập nhật nếu dòng này có giá trị
+      const rawNgay   = sd(r[colNgay]);
+      const rawNgayKQ = sd(r[colNgayKQ]);
+      if (rawNgay)   lastNgayDong = rawNgay;
+      if (rawNgayKQ) lastNgayKQ   = rawNgayKQ;
+
+      return {
+        bv,
+        matHang:      String(r[colMH]||'').trim(),
+        slDuThau:     sn(r[colSL]),
+        giaDuThau:    sn(r[colGia]),
+        congTy:       String(r[colCty]||'').trim(),
+        nguoi:        String(r[colNguoi]||'').trim(),
+        ngayDongThau: lastNgayDong,
+        ngayCoKQ:     lastNgayKQ,
+        hasKQ:        !!lastNgayKQ,
+        daysUntil:    lastNgayDong ? Math.round((new Date(lastNgayDong) - TODAY) / 86400000) : null,
+      };
+    })
+    // Filter: chỉ giữ rows CHƯA có ngày kết quả
+    .filter(r => !r.hasKQ);
+}
+
+// ── RENDER THẦU RR (Chờ kết quả) ──
+function renderRR() {
+  refreshBVSel('rr');
+  const fSearch = (document.getElementById('search-input-rr').value || '').toLowerCase().trim();
+  const filtered = allDataRR.filter(r => {
+    if (_selectedBVs['rr'].size > 0 && !_selectedBVs['rr'].has(r.bv)) return false;
+    if (fSearch && !(r.matHang + ' ' + r.bv).toLowerCase().includes(fSearch)) return false;
+    return true;
+  });
+
+  // Stats
+  const bvCount    = new Set(filtered.map(r => r.bv)).size;
+  const mhCount    = new Set(filtered.map(r => r.matHang)).size;
+  const totalSL    = filtered.reduce((s,r) => s + r.slDuThau, 0);
+  // Chưa mở thầu: ngày mở thầu > hôm nay
+  const chuaMoThau = filtered.filter(r => r.daysUntil != null && r.daysUntil > 0);
+  // Đang chờ KQ: đã qua ngày mở thầu (daysUntil <= 0) hoặc không có ngày
+  const dangChoKQ  = filtered.filter(r => r.daysUntil == null || r.daysUntil <= 0);
+  // BV unique cho mỗi nhóm
+  const bvChuaMo   = new Set(chuaMoThau.map(r => r.bv)).size;
+  const bvChoKQ    = new Set(dangChoKQ.map(r => r.bv)).size;
+
+  document.getElementById('stats-row-rr').innerHTML = `
+    <div class="stat">
+      <div class="stat-label">Bệnh viện</div>
+      <div class="stat-val">${bvCount}</div>
+      <div class="stat-sub">${filtered.length} mục • SL: ${fmtN(totalSL)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" style="color:#0C447C">⏳ Chưa mở thầu</div>
+      <div class="stat-val" style="color:#0C447C">${chuaMoThau.length}</div>
+      <div class="stat-sub">${bvChuaMo} bệnh viện</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" style="color:#856404">🔔 Đang chờ kết quả</div>
+      <div class="stat-val" style="color:#856404">${dangChoKQ.length}</div>
+      <div class="stat-sub">${bvChoKQ} bệnh viện</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" style="color:#856404">💰 GT chờ kết quả</div>
+      <div class="stat-val" style="color:#856404;font-size:18px">${fmtM(dangChoKQ.reduce((s,r)=>s+r.slDuThau*r.giaDuThau,0))}</div>
+      <div class="stat-sub">thành tiền dự thầu</div>
+    </div>
+  `;
+
+  // Group by BV
+  const grouped = {};
+  filtered.forEach(r => { if (!grouped[r.bv]) grouped[r.bv] = []; grouped[r.bv].push(r); });
+
+  document.getElementById('tbl-head-rr').innerHTML = `
+    <tr>
+      <th class="pin-mat" style="left:0;min-width:170px;max-width:170px">Tên mặt hàng</th>
+      <th style="text-align:right;min-width:80px;border-left:1px solid var(--border2)">SL dự thầu</th>
+      <th style="text-align:right;min-width:80px;border-left:1px solid var(--border2)">Giá dự thầu</th>
+      <th style="text-align:right;min-width:90px;border-left:1px solid var(--border2)">Thành tiền</th>
+      <th style="text-align:center;min-width:95px;border-left:2px solid var(--border2)">Ngày mở thầu</th>
+      <th style="text-align:center;min-width:75px;border-left:1px solid var(--border2)">Số ngày</th>
+    </tr>`;
+
+  tipCache = [];
+  let html = '';
+
+  if (!Object.keys(grouped).length) {
+    html = `<tr><td colspan="6" class="no-data">📭 Không có dữ liệu phù hợp</td></tr>`;
+    document.getElementById('tbl-body-rr').innerHTML = html;
+    return;
+  }
+
+  if (!window._allBvKeys) window._allBvKeys = {};
+  window._allBvKeys['rr'] = Object.fromEntries(Object.keys(grouped).map(k => [encodeURIComponent(k), true]));
+
+  Object.keys(grouped).sort((a,b) => a.localeCompare(b,'vi')).forEach(bv => {
+    const gRows = grouped[bv];
+    const earliestDate = gRows.map(r => r.ngayDongThau).filter(Boolean).sort()[0];
+    const bvKey = encodeURIComponent(bv);
+
+    const dateTag = earliestDate
+      ? `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#E6F1FB;color:#0C447C;font-weight:600;border:1px solid #85B7EB">📅 ${fmtDate(earliestDate)}</span>`
+      : `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:var(--bg2);color:var(--text3);border:1px solid var(--border2)">Chưa có ngày</span>`;
+    const mhTag = `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#F0F4FF;color:#2C4A8A;font-weight:600;border:1px solid #B0C4E8">${gRows.length} mặt hàng</span>`;
+
+    html += `<tr class="grp-hdr" style="cursor:pointer" onclick="toggleGroup('rr','${bvKey}')">
+      <td colspan="6"><div class="grp-sticky">
+        <span id="toggle-icon-rr-${bvKey}" style="font-size:11px;margin-right:2px;transition:transform .2s;display:inline-block">▾</span>
+        ${bv}${dateTag}${mhTag}
+      </div></td>
+    </tr>`;
+
+    gRows.forEach(r => {
+      const tt = r.slDuThau * r.giaDuThau;
+      const d = r.daysUntil;
+
+      // Cột ngày mở thầu — chỉ hiển thị ngày
+      const dateCell = r.ngayDongThau
+        ? `<span style="font-size:12px">${fmtDate(r.ngayDongThau)}</span>`
+        : `<span style="color:var(--text3)">—</span>`;
+
+      // Cột số ngày — đếm ngược/đếm xuôi với màu
+      let daysCell = '<span style="color:var(--text3)">—</span>';
+      if (d != null) {
+        const color = d < 0 ? 'var(--text3)' : d <= 3 ? '#C0392B' : d <= 7 ? '#856404' : '#0C447C';
+        const label = d < 0 ? `${Math.abs(d)}n trước` : d === 0 ? 'Hôm nay' : `còn ${d}n`;
+        daysCell = `<span style="font-size:11px;font-weight:600;color:${color}">${label}</span>`;
+      }
+
+      html += `<tr data-tab="rr" data-grp="${bvKey}">
+        <td class="pin-mat" style="left:0;padding-left:25px">${r.matHang}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${fmtN(r.slDuThau)}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${r.giaDuThau ? fmtN(r.giaDuThau) : '—'}</td>
+        <td class="num" style="border-left:1px solid var(--border)">${tt > 0 ? fmtM(tt) : '—'}</td>
+        <td class="center" style="border-left:2px solid var(--border2)">${dateCell}</td>
+        <td class="center" style="border-left:1px solid var(--border)">${daysCell}</td>
+      </tr>`;
+    });
+  });
+
+  document.getElementById('tbl-body-rr').innerHTML = html;
+}
+
+// ── TOOLTIP ──
+const tipEl = document.getElementById('tip');
+function showTip(e, idx) {
+  const r = window._tipCache[idx];
+  if (!r) return;
+  const wl = warnLevel(r);
+  const sl = r.slTrung > 0 ? (r.slDaGiao / r.slTrung * 100).toFixed(1) : 0;
+  const gtPct = r.giaTriHD > 0 ? (r.giaTriThucHien / r.giaTriHD * 100).toFixed(1) : 0;
+  const warnColor = wl === 'red' || wl === 'expired' ? '#C0392B' : wl === 'yellow' ? '#856404' : '#1D9E75';
+  const headerLine = r._tab === 'tinh'
+    ? `<div style="font-size:10px;color:var(--text2);margin-bottom:2px">${r.donViDauThau}</div>${r.bvPhanBo !== r.donViDauThau ? `<div style="font-size:10px;color:#2C4A8A;margin-bottom:6px">🏥 ${r.bvPhanBo}</div>` : '<div style="margin-bottom:6px"></div>'}`
+    : `<div style="font-size:10px;color:var(--text2);margin-bottom:6px">${r.bv||''}</div>`;
+
+  tipEl.innerHTML = `
+    <div class="tip-title">${r.matHang}</div>
+    ${headerLine}
+    <hr class="tip-divider">
+    <div class="tip-row"><span class="tip-label">SL Ký HĐ</span><span class="tip-val">${fmtN(r.slTrung)}</span></div>
+    <div class="tip-row"><span class="tip-label">SL Đã giao</span><span class="tip-val" style="color:#1D9E75;font-weight:700">${fmtN(r.slDaGiao)}</span></div>
+    <div class="tip-row"><span class="tip-label">SL Còn lại</span><span class="tip-val" style="color:#EF9F27">${fmtN(r.conLai)}</span></div>
+    <div class="tip-row"><span class="tip-label">% SL thực hiện</span><span class="tip-val">${sl}%</span></div>
+    <hr class="tip-divider">
+    <div class="tip-row"><span class="tip-label">Đơn giá</span><span class="tip-val">${fmtN(r.donGia)} đ</span></div>
+    <div class="tip-row"><span class="tip-label">GT Hợp đồng</span><span class="tip-val">${fmtM(r.giaTriHD)}</span></div>
+    <div class="tip-row"><span class="tip-label">GT Thực hiện</span><span class="tip-val" style="color:#1D9E75;font-weight:700">${fmtM(r.giaTriThucHien)}</span></div>
+    <hr class="tip-divider">
+    <div class="tip-row"><span class="tip-label">Ngày ký HĐ</span><span class="tip-val">${fmtDate(r.ngayKy)}</span></div>
+    <div class="tip-row"><span class="tip-label">Ngày kết thúc</span><span class="tip-val" style="color:${warnColor}">${fmtDate(r.ngayKetThuc)}</span></div>
+    <div class="tip-row"><span class="tip-label">Tổng thời gian HĐ</span><span class="tip-val">${r.totalDays ?? '—'} ngày</span></div>
+    <div class="tip-row"><span class="tip-label">Đã qua (Times gone)</span><span class="tip-val" style="color:#D4537E">${r.timesGone ?? '—'}%</span></div>
+    <div class="tip-row"><span class="tip-label">Còn lại</span><span class="tip-val" style="color:${warnColor};font-weight:700">${r.daysLeft ?? '—'} ngày</span></div>
+    ${r.ghiChu ? `<hr class="tip-divider"><div style="font-size:10px;color:var(--text2);font-style:italic">${r.ghiChu}</div>` : ''}
+  `;
+  tipEl.classList.add('show');
+  moveTip(e);
+}
+function hideTip() { tipEl.classList.remove('show'); }
+function moveTip(e) {
+  const pad = 14, tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + tw > window.innerWidth - 8) x = e.clientX - tw - pad;
+  if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
+  tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+}
+
+// ── CLEAR CACHE ──
+function clearCache() {
+  if (!confirm('Xóa dữ liệu đã lưu?')) return;
+  ['thau_hcm_data','thau_hcm_label','thau_tinh_data','thau_tinh_label','thau_qg_data','thau_qg_label','thau_rr_data','thau_rr_label','thau_data','thau_label'].forEach(k => localStorage.removeItem(k));
+  allDataHCM = []; allDataTinh = []; allDataQG = []; allDataRR = [];
+  ['hcm','tinh','qg','rr'].forEach(t => {
+    document.getElementById('update-time-' + t).textContent = '📂 Chưa tải dữ liệu';
+    document.getElementById('stats-row-' + t).innerHTML = '';
+    document.getElementById('tbl-body-' + t).innerHTML = '';
+    document.getElementById('tbl-head-' + t).innerHTML = '';
+  });
+  toast('🗑 Đã xóa dữ liệu cache');
+}
+
+// ── TOAST ──
+function toast(msg, dur = 2500) {
+  const el = document.getElementById('toast-el');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ── SERVICE WORKER ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(r => console.log('SW registered:', r.scope))
+      .catch(e => console.warn('SW error:', e));
+  });
+}
+
+// ── INIT: Load từ localStorage ──
+(function() {
+  let loaded = false;
+  try {
+    const savedHCM = localStorage.getItem('thau_hcm_data');
+    const labelHCM = localStorage.getItem('thau_hcm_label');
+    if (savedHCM) {
+      allDataHCM = JSON.parse(savedHCM);
+      document.getElementById('update-time-hcm').textContent = (labelHCM || 'Dữ liệu đã lưu') + ' 💾';
+      document.getElementById('update-time-hcm').style.display = '';
+      renderHCM();
+      loaded = true;
+    }
+    const savedTinh = localStorage.getItem('thau_tinh_data');
+    const labelTinh = localStorage.getItem('thau_tinh_label');
+    if (savedTinh) {
+      allDataTinh = JSON.parse(savedTinh);
+      document.getElementById('update-time-tinh').textContent = (labelTinh || 'Dữ liệu đã lưu') + ' 💾';
+      renderTinh();
+      loaded = true;
+    }
+    const savedQG = localStorage.getItem('thau_qg_data');
+    const labelQG = localStorage.getItem('thau_qg_label');
+    if (savedQG) {
+      allDataQG = JSON.parse(savedQG);
+      document.getElementById('update-time-qg').textContent = (labelQG || 'Dữ liệu đã lưu') + ' 💾';
+      renderQG();
+      loaded = true;
+    }
+    const savedRR = localStorage.getItem('thau_rr_data');
+    const labelRR = localStorage.getItem('thau_rr_label');
+    if (savedRR) {
+      allDataRR = JSON.parse(savedRR);
+      document.getElementById('update-time-rr').textContent = (labelRR || 'Dữ liệu đã lưu') + ' 💾';
+      renderRR();
+      loaded = true;
+    }
+    // Legacy: thử load từ key cũ nếu chưa có key mới
+    if (!savedHCM) {
+      const old = localStorage.getItem('thau_data');
+      const oldLabel = localStorage.getItem('thau_label');
+      if (old) {
+        allDataHCM = JSON.parse(old);
+        document.getElementById('update-time-hcm').textContent = (oldLabel || 'Dữ liệu đã lưu') + ' 💾';
+        document.getElementById('update-time-hcm').style.display = '';
+        renderHCM();
+        loaded = true;
+      }
+    }
+  } catch(e) { console.warn('Không đọc được localStorage:', e); }
+
+  if (!loaded) {
+    document.getElementById('update-time-hcm').textContent = '📂 Chưa tải dữ liệu';
+    document.getElementById('update-time-hcm').style.display = '';
+    ['hcm','tinh','qg','rr'].forEach(t => {
+      document.getElementById('stats-row-' + t).innerHTML = `
+        <div class="stat" style="grid-column:1/-1;text-align:center;padding:1.5rem">
+          <div class="stat-val" style="font-size:15px;color:var(--text2)">📂 Nhấn <strong>Load Excel</strong> để xem dữ liệu</div>
+          <div class="stat-sub" style="margin-top:6px">Dữ liệu sẽ được lưu lại cho lần sau</div>
+        </div>`;
+    });
+  }
+
+  // Show active tab's update time
+  switchTab('hcm');
+})();
+</script>
+</body>
+</html>
