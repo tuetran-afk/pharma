@@ -671,6 +671,123 @@
     margin-top: 60px;
     opacity: 0.6;
   }
+
+  /* ── Drug Tag Input ────────────────────────────────── */
+  .drug-tags-wrap {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    cursor: text;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    min-height: 48px;
+  }
+  .drug-tags-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,194,255,0.12);
+  }
+  .drug-tags-list { display: contents; }
+  .drug-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0,194,255,0.12);
+    border: 1px solid rgba(0,194,255,0.3);
+    border-radius: 7px;
+    padding: 4px 10px 4px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    animation: fadeUp 0.15s ease forwards;
+    opacity: 0;
+  }
+  .drug-tag .tag-num {
+    font-size: 10px;
+    opacity: 0.6;
+    font-weight: 400;
+  }
+  .drug-tag .tag-del {
+    cursor: pointer;
+    font-size: 11px;
+    opacity: 0.5;
+    transition: opacity 0.12s;
+    margin-left: 2px;
+    line-height: 1;
+  }
+  .drug-tag .tag-del:hover { opacity: 1; color: var(--danger); }
+  #drugInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    padding: 4px 6px;
+    min-width: 140px;
+    flex: 1;
+  }
+  #drugInput::placeholder { color: var(--muted); }
+  .combos-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+  }
+  .combo-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── History ──────────────────────────────────────── */
+  .history-label {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px;
+  }
+  .history-list { display: flex; flex-wrap: wrap; gap: 7px; }
+  .history-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 20px;
+    font-size: 12px; color: var(--text); cursor: pointer;
+    transition: all 0.15s; max-width: 300px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .history-chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,194,255,0.07); }
+  .hc-del {
+    flex-shrink: 0; opacity: 0; font-size: 11px; color: var(--danger);
+    transition: opacity 0.12s; margin-left: 2px;
+  }
+  .history-chip:hover .hc-del { opacity: 1; }
+
+  /* ── Result group header ──────────────────────────── */
+  .result-group-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; margin: 20px 0 10px;
+    border-radius: 10px;
+    background: rgba(0,194,255,0.06); border: 1px solid rgba(0,194,255,0.15);
+    font-size: 13px; font-weight: 600; color: var(--accent);
+  }
+  .rgh-badge {
+    margin-left: auto; font-size: 11px; padding: 2px 9px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .rgh-badge.has { background: rgba(0,194,255,0.12); border: 1px solid rgba(0,194,255,0.25); color: var(--accent); }
+  .rgh-badge.none { background: rgba(122,139,168,0.1); border: 1px solid rgba(122,139,168,0.2); color: var(--muted); }
 </style>
 </head>
 <body>
@@ -684,21 +801,24 @@
     <p class="subtitle">Hệ thống kiểm tra tương tác thuốc lâm sàng</p>
   </header>
 
+  <!-- History bar -->
+  <div id="historyBar" style="display:none;margin-bottom:16px;">
+    <div class="history-label">🕐 Lịch sử tra cứu</div>
+    <div id="historyList" class="history-list"></div>
+  </div>
+
   <div class="search-wrap">
-    <div class="search-row">
-      <div class="field-group">
-        <label>🔍 Tên Thuốc 1</label>
-        <div class="ac-wrap" id="wrap1">
-          <input type="text" id="drug1" placeholder="Ví dụ: Aceclofenac, Warfarin…" autocomplete="off">
+    <div class="field-group" style="margin-bottom:14px;">
+      <label>💊 Danh sách thuốc <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:11px;">— tự động kiểm tra tất cả cặp</span></label>
+      <div class="drug-tags-wrap" onclick="document.getElementById('drugInput').focus()">
+        <div id="drugTagsList" class="drug-tags-list"></div>
+        <div class="ac-wrap" id="wrapDrugInput" style="display:contents">
+          <input type="text" id="drugInput" placeholder="Nhập tên thuốc → Enter để thêm…" autocomplete="off">
         </div>
       </div>
-      <div class="field-group">
-        <label>🔍 Tên Thuốc 2 (tùy chọn)</label>
-        <div class="ac-wrap" id="wrap2">
-          <input type="text" id="drug2" placeholder="Ví dụ: Ketorolac, Aspirin…" autocomplete="off">
-        </div>
-      </div>
+      <div id="combosHint" class="combos-hint"></div>
     </div>
+
     <div class="search-row">
       <div class="field-group">
         <label>⚠️ Mức độ tương tác</label>
@@ -749,17 +869,128 @@
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbx82WBh-KxvMvuGAkDN07lsCJv3gyC059csLAm0Vn9rfe-vMcCMTWRMP6WGwwaKwPMtJw/exec';
-
 let allData = null;
 
-// Enter key support — bỏ qua khi dropdown đang mở
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
+// ── Drug tag list ─────────────────────────────────────────
+let drugList = []; // ['Warfarin', 'Aspirin', ...]
+
+function addDrug(name) {
+  name = name.trim();
+  if (!name) return;
+  if (drugList.some(d => d.toLowerCase() === name.toLowerCase())) return;
+  if (drugList.length >= 15) return;
+  drugList.push(name);
+  renderTags();
+  updateCombosHint();
+}
+
+function removeDrug(idx) {
+  drugList.splice(idx, 1);
+  renderTags();
+  updateCombosHint();
+}
+
+function renderTags() {
+  const list = document.getElementById('drugTagsList');
+  list.innerHTML = drugList.map((d, i) => `
+    <span class="drug-tag">
+      <span class="tag-num">${i+1}</span>
+      ${d}
+      <span class="tag-del" onclick="removeDrug(${i})">✕</span>
+    </span>`).join('');
+}
+
+function getCombos() {
+  const combos = [];
+  for (let i = 0; i < drugList.length; i++)
+    for (let j = i+1; j < drugList.length; j++)
+      combos.push([drugList[i], drugList[j]]);
+  return combos;
+}
+
+function updateCombosHint() {
+  const hint = document.getElementById('combosHint');
+  if (drugList.length < 2) { hint.innerHTML = ''; return; }
+  const combos = getCombos();
+  hint.innerHTML = `<span style="margin-right:4px">🔗 ${combos.length} cặp sẽ tra:</span>`
+    + combos.map(([a,b]) => `<span class="combo-chip">${a} ⇄ ${b}</span>`).join('');
+}
+
+// ── Drug input (Enter / Backspace) ───────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('drugInput');
+  inp.addEventListener('keydown', e => {
     const anyDropdown = document.querySelector('.ac-dropdown');
-    if (!anyDropdown) search();
+    if (e.key === 'Enter') {
+      if (anyDropdown) return; // let autocomplete handle
+      e.preventDefault();
+      const val = inp.value.trim();
+      if (val) { addDrug(val); inp.value = ''; closeAllDropdowns(); }
+      else search();
+    } else if (e.key === 'Backspace' && inp.value === '' && drugList.length > 0) {
+      removeDrug(drugList.length - 1);
+    }
+  });
+});
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.ac-dropdown').forEach(d => d.remove());
+}
+
+// ── History ───────────────────────────────────────────────
+const HISTORY_KEY = 'ttt_search_history';
+const HISTORY_MAX = 5;
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(entry) {
+  let hist = loadHistory();
+  hist = hist.filter(h => JSON.stringify(h.drugs) !== JSON.stringify(entry.drugs));
+  hist.unshift(entry);
+  if (hist.length > HISTORY_MAX) hist = hist.slice(0, HISTORY_MAX);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(hist)); } catch {}
+  renderHistory();
+}
+function removeHistoryItem(idx, ev) {
+  ev.stopPropagation();
+  let hist = loadHistory(); hist.splice(idx, 1);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(hist)); } catch {}
+  renderHistory();
+}
+function renderHistory() {
+  const hist = loadHistory();
+  const bar = document.getElementById('historyBar');
+  const list = document.getElementById('historyList');
+  if (!hist.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+  list.innerHTML = hist.map((h, i) => {
+    const label = h.drugs.join(', ');
+    return `<span class="history-chip" onclick="applyHistory(${i})" title="${label}">
+      <span style="opacity:.6;font-size:11px">🕐</span>
+      <span style="overflow:hidden;text-overflow:ellipsis">${label}</span>
+      <span class="hc-del" onclick="removeHistoryItem(${i},event)">✕</span>
+    </span>`;
+  }).join('');
+}
+function applyHistory(idx) {
+  const hist = loadHistory();
+  const entry = hist[idx]; if (!entry) return;
+  drugList = [...entry.drugs];
+  renderTags(); updateCombosHint();
+  if (entry.level !== undefined) document.getElementById('level').value = entry.level;
+  if (entry.nhom  !== undefined) document.getElementById('nhom').value  = entry.nhom;
+  search();
+}
+
+// ── Enter on page (outside input) ────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement.id !== 'drugInput') {
+    if (!document.querySelector('.ac-dropdown')) search();
   }
 });
 
+// ── Helpers ───────────────────────────────────────────────
 function getLevelClass(level) {
   if (!level) return 'other';
   if (level.includes('Chống chỉ định có điều kiện')) return 'CCCD';
@@ -767,66 +998,54 @@ function getLevelClass(level) {
   if (level.includes('Thận trọng')) return 'TT';
   return 'other';
 }
-
 function highlight(text, query) {
   if (!query || !text) return text || '';
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return String(text).replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
 }
-
+function escAttr(s) {
+  return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+}
 function renderCard(item, q1, q2) {
-  const t1 = item['Thuốc 1']?.value || '';
-  const t2 = item['Thuốc 2']?.value || '';
-  const level = item['Mức độ']?.value || '';
-  const nhom = item['Nhóm tương tác']?.value || '';
-  const cochef = item['Cơ chế']?.value || '';
-  const hq = item['Hậu quả']?.value || '';
-  const xt = item['Xử trí']?.value || '';
-  const src = item['Nguồn'] || '';
-  const lc = getLevelClass(level);
-  const uid = 'card_' + Math.random().toString(36).slice(2, 8);
-
+  const t1 = item['Thuốc 1']?.value||'', t2 = item['Thuốc 2']?.value||'';
+  const level=item['Mức độ']?.value||'', nhom=item['Nhóm tương tác']?.value||'';
+  const cochef=item['Cơ chế']?.value||'', hq=item['Hậu quả']?.value||'';
+  const xt=item['Xử trí']?.value||'', src=item['Nguồn']||'';
+  const lc=getLevelClass(level);
+  const uid='card_'+Math.random().toString(36).slice(2,8);
   return `
   <div class="result-card" id="${uid}">
     <div class="card-header" style="cursor:pointer" onclick="toggleCard('${uid}')">
       <div class="drug-pair">
-        <span class="drug-name">${highlight(t1, q1)}</span>
+        <span class="drug-name">${highlight(t1,q1)}</span>
         <span class="arrow-icon">⇄</span>
-        <span class="drug-name">${highlight(t2, q2 || q1)}</span>
+        <span class="drug-name">${highlight(t2,q2||q1)}</span>
       </div>
       <div class="card-meta-row" onclick="event.stopPropagation()">
         <span class="nhom-badge">🧬 ${nhom}</span>
-        <span class="level-badge level-${lc}">${level || 'Không xác định'}</span>
-        <button class="btn-icon" title="Sao chép thông tin" onclick="copyCard('${uid}','${escAttr(t1)}','${escAttr(t2)}','${escAttr(level)}','${escAttr(nhom)}','${escAttr(cochef)}','${escAttr(hq)}','${escAttr(xt)}','${escAttr(src)}')">📋</button>
+        <span class="level-badge level-${lc}">${level||'Không xác định'}</span>
+        <button class="btn-icon" title="Sao chép" onclick="copyCard('${uid}','${escAttr(t1)}','${escAttr(t2)}','${escAttr(level)}','${escAttr(nhom)}','${escAttr(cochef)}','${escAttr(hq)}','${escAttr(xt)}','${escAttr(src)}')">📋</button>
         <i class="toggle-icon" id="${uid}_icon" style="pointer-events:none">▾</i>
       </div>
     </div>
     <div class="card-body" id="${uid}_body">
-      <div class="info-block full">
-        <span class="info-label">Cơ chế tương tác</span>
-        <span class="info-value">${cochef}</span>
-      </div>
-      <div class="info-block full">
-        <span class="info-label">Hậu quả</span>
-        <span class="info-value">${hq}</span>
-      </div>
+      <div class="info-block full"><span class="info-label">Cơ chế tương tác</span><span class="info-value">${cochef}</span></div>
+      <div class="info-block full"><span class="info-label">Hậu quả</span><span class="info-value">${hq}</span></div>
       <div class="info-block full">
         <div class="xử-trí-block">
-          <span class="info-label">⚠️ Xử trí / Khuyến cáo</span>
-          <hr class="divider">
-          <span class="info-value">${xt.replace(/\n/g, '<br>')}</span>
+          <span class="info-label">⚠️ Xử trí / Khuyến cáo</span><hr class="divider">
+          <span class="info-value">${xt.replace(/\n/g,'<br>')}</span>
         </div>
       </div>
     </div>
     <div class="card-source-footer">
       <span class="info-label">Nguồn:</span>
-      <span class="source-tag">${src.replace(/\n/g, '<br>')}</span>
+      <span class="source-tag">${src.replace(/\n/g,'<br>')}</span>
     </div>
   </div>`;
 }
-
-function renderSkeletons(n = 3) {
-  return Array.from({length: n}, () => `
+function renderSkeletons(n=3) {
+  return Array.from({length:n},()=>`
     <div class="skeleton-card">
       <div style="display:flex;gap:10px;align-items:center">
         <div class="skeleton" style="width:140px;height:20px"></div>
@@ -840,391 +1059,265 @@ function renderSkeletons(n = 3) {
     </div>`).join('');
 }
 
-const CACHE_KEY = 'ttt_data_cache';
-const CACHE_TS  = 'ttt_data_ts';
-const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 tiếng
-
-async function fetchData(retry = 2) {
+// ── Cache ─────────────────────────────────────────────────
+const CACHE_KEY='ttt_data_cache', CACHE_TS='ttt_data_ts', CACHE_TTL=6*60*60*1000;
+async function fetchData(retry=2) {
   if (allData) return allData;
-
-  // Thử đọc cache localStorage trước
-  const ts = parseInt(localStorage.getItem(CACHE_TS) || '0');
-  const raw = localStorage.getItem(CACHE_KEY);
-  const cacheValid = raw && (Date.now() - ts < CACHE_TTL);
-
-  // Nếu cache còn hạn → dùng luôn, fetch ngầm để refresh
-  if (cacheValid) {
-    try { allData = JSON.parse(raw); } catch {}
+  const ts=parseInt(localStorage.getItem(CACHE_TS)||'0');
+  const raw=localStorage.getItem(CACHE_KEY);
+  if (raw && Date.now()-ts < CACHE_TTL) {
+    try { allData=JSON.parse(raw); } catch {}
     if (allData?.length) {
-      // Refresh ngầm
-      fetch(API_URL).then(r => r.ok ? r.json() : null).then(json => {
+      fetch(API_URL).then(r=>r.ok?r.json():null).then(json=>{
         if (!json) return;
-        const fresh = Array.isArray(json) ? json : (json.data || []);
-        if (fresh.length) {
-          allData = fresh;
-          localStorage.setItem(CACHE_KEY, JSON.stringify(fresh));
-          localStorage.setItem(CACHE_TS, Date.now().toString());
-        }
-      }).catch(() => {});
+        const fresh=Array.isArray(json)?json:(json.data||[]);
+        if (fresh.length) { allData=fresh; try{localStorage.setItem(CACHE_KEY,JSON.stringify(fresh));localStorage.setItem(CACHE_TS,Date.now().toString());}catch{} }
+      }).catch(()=>{});
       return allData;
     }
   }
-
-  // Fetch mạng với retry
   let lastErr;
-  for (let i = 0; i <= retry; i++) {
+  for (let i=0;i<=retry;i++) {
     try {
-      const res = await fetch(API_URL);
+      const res=await fetch(API_URL);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      allData = Array.isArray(json) ? json : (json.data || []);
-      // Lưu cache
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(allData));
-        localStorage.setItem(CACHE_TS, Date.now().toString());
-      } catch {}
+      const json=await res.json();
+      allData=Array.isArray(json)?json:(json.data||[]);
+      try{localStorage.setItem(CACHE_KEY,JSON.stringify(allData));localStorage.setItem(CACHE_TS,Date.now().toString());}catch{}
       return allData;
-    } catch(err) {
-      lastErr = err;
-      if (i < retry) await new Promise(r => setTimeout(r, 800 * (i + 1)));
-    }
+    } catch(err) { lastErr=err; if(i<retry) await new Promise(r=>setTimeout(r,800*(i+1))); }
   }
-
-  // Fallback: cache cũ dù hết hạn
-  if (raw) {
-    try {
-      allData = JSON.parse(raw);
-      if (allData?.length) return allData;
-    } catch {}
-  }
-
-  throw new Error('Không thể kết nối. ' + (lastErr?.message || ''));
+  if (raw) { try{allData=JSON.parse(raw);if(allData?.length)return allData;}catch{} }
+  throw new Error('Không thể kết nối. '+(lastErr?.message||''));
 }
 
-async function search() {
-  const q1 = document.getElementById('drug1').value.trim();
-  const q2 = document.getElementById('drug2').value.trim();
-  const level = document.getElementById('level').value;
-  const nhom = document.getElementById('nhom').value;
+// ── Search ────────────────────────────────────────────────
+const SEVERITY_ORDER={'Chống chỉ định':0,'Chống chỉ định có điều kiện':1,'Thận trọng':2};
+let lastPairResults=[], currentSort='severity';
 
-  if (!q1 && !q2 && !level && !nhom) {
-    document.getElementById('results').innerHTML = `
-      <div class="empty-state">
-        <div class="icon">🔍</div>
-        <h3>Nhập tên thuốc để bắt đầu</h3>
-        <p>Nhập ít nhất tên một thuốc để tra cứu tương tác</p>
-      </div>`;
+async function search() {
+  // Add current input value if any
+  const inp = document.getElementById('drugInput');
+  const pending = inp.value.trim();
+  if (pending) { addDrug(pending); inp.value = ''; closeAllDropdowns(); }
+
+  const level=document.getElementById('level').value;
+  const nhom =document.getElementById('nhom').value;
+
+  if (drugList.length === 0 && !level && !nhom) {
+    document.getElementById('results').innerHTML=`
+      <div class="empty-state"><div class="icon">🔍</div>
+      <h3>Nhập tên thuốc để bắt đầu</h3>
+      <p>Nhập ít nhất một tên thuốc để tra cứu tương tác</p></div>`;
     return;
   }
 
-  // Show loading
-  const btn = document.getElementById('btnSearch');
-  btn.disabled = true;
-  document.getElementById('btnText').innerHTML = '<div class="spinner"></div> Đang tải…';
-  document.getElementById('results').innerHTML = renderSkeletons(3);
-  document.getElementById('statsBar').style.display = 'none';
+  const btn=document.getElementById('btnSearch');
+  btn.disabled=true;
+  document.getElementById('btnText').innerHTML='<div class="spinner"></div> Đang tải…';
+  document.getElementById('results').innerHTML=renderSkeletons(3);
+  document.getElementById('statsBar').style.display='none';
+  document.getElementById('sortBar').style.display='none';
 
   try {
-    const data = await fetchData();
+    const data=await fetchData();
+    const combos = drugList.length >= 2 ? getCombos() : [[drugList[0]||'', '']];
 
-    const results = data.filter(item => {
-      const t1 = (item['Thuốc 1']?.value || '').toLowerCase();
-      const t2 = (item['Thuốc 2']?.value || '').toLowerCase();
-      const lv = (item['Mức độ']?.value || '');
-      const nh = (item['Nhóm tương tác']?.value || '');
-
-      const matchDrug = (() => {
-        if (!q1 && !q2) return true;
-        const d1 = q1.toLowerCase(), d2 = q2.toLowerCase();
-        if (d1 && d2) {
-          return (t1.includes(d1) && t2.includes(d2)) || (t1.includes(d2) && t2.includes(d1));
-        }
-        const q = (d1 || d2);
-        return t1.includes(q) || t2.includes(q);
-      })();
-
-      const matchLevel = !level || lv === level;
-      const matchNhom = !nhom || nh === nhom;
-
-      return matchDrug && matchLevel && matchNhom;
+    const pairResults = combos.map(([q1,q2]) => {
+      const results=data.filter(item=>{
+        const t1=(item['Thuốc 1']?.value||'').toLowerCase();
+        const t2=(item['Thuốc 2']?.value||'').toLowerCase();
+        const lv=item['Mức độ']?.value||'', nh=item['Nhóm tương tác']?.value||'';
+        const d1=q1.toLowerCase(), d2=q2.toLowerCase();
+        const matchDrug=(()=>{
+          if (!d1&&!d2) return true;
+          if (d1&&d2) return (t1.includes(d1)&&t2.includes(d2))||(t1.includes(d2)&&t2.includes(d1));
+          const q=d1||d2; return t1.includes(q)||t2.includes(q);
+        })();
+        return matchDrug&&(!level||lv===level)&&(!nhom||nh===nhom);
+      });
+      return {q1,q2,results};
     });
 
-    // Stats
-    const ccc = results.filter(r => r['Mức độ']?.value === 'Chống chỉ định').length;
-    const cccd = results.filter(r => r['Mức độ']?.value === 'Chống chỉ định có điều kiện').length;
-    const statsEl = document.getElementById('statsBar');
-    if (results.length > 0) {
-      statsEl.style.display = 'flex';
-      statsEl.innerHTML = `
-        <div class="stat-chip total">📊 ${results.length} kết quả</div>
-        ${ccc ? `<div class="stat-chip danger">🚫 ${ccc} chống chỉ định</div>` : ''}
-        ${cccd ? `<div class="stat-chip warning">⚠️ ${cccd} có điều kiện</div>` : ''}
-      `;
-    } else {
-      statsEl.style.display = 'none';
-    }
+    if (drugList.length) saveHistory({drugs:[...drugList],level,nhom,ts:Date.now()});
 
-    if (results.length === 0) {
-      document.getElementById('sortBar').style.display = 'none';
-      document.getElementById('results').innerHTML = `
-        <div class="empty-state">
-          <div class="icon">💊</div>
-          <h3>Không tìm thấy tương tác</h3>
-          <p>Không có dữ liệu tương tác cho từ khóa này.<br>Thử kiểm tra chính tả hoặc thay đổi bộ lọc.</p>
-        </div>`;
+    const allResults=pairResults.flatMap(p=>p.results);
+    const ccc =allResults.filter(r=>r['Mức độ']?.value==='Chống chỉ định').length;
+    const cccd=allResults.filter(r=>r['Mức độ']?.value==='Chống chỉ định có điều kiện').length;
+    const statsEl=document.getElementById('statsBar');
+
+    if (allResults.length>0) {
+      statsEl.style.display='flex';
+      statsEl.innerHTML=`
+        <div class="stat-chip total">📊 ${allResults.length} kết quả</div>
+        ${ccc ?`<div class="stat-chip danger">🚫 ${ccc} chống chỉ định</div>`:''}
+        ${cccd?`<div class="stat-chip warning">⚠️ ${cccd} có điều kiện</div>`:''}
+        ${combos.length>1?`<div class="stat-chip total">🔗 ${combos.length} cặp</div>`:''}`;
+    } else statsEl.style.display='none';
+
+    if (allResults.length===0) {
+      document.getElementById('results').innerHTML=`
+        <div class="empty-state"><div class="icon">💊</div>
+        <h3>Không tìm thấy tương tác</h3>
+        <p>Không có dữ liệu tương tác cho danh sách thuốc này.<br>Thử kiểm tra chính tả hoặc thay đổi bộ lọc.</p></div>`;
     } else {
-      document.getElementById('sortBar').style.display = 'flex';
-      lastResults = results;
-      lastQ1 = q1; lastQ2 = q2;
+      document.getElementById('sortBar').style.display='flex';
+      lastPairResults=pairResults;
       renderResults();
     }
-
-  } catch (err) {
-    document.getElementById('sortBar').style.display = 'none';
-    document.getElementById('results').innerHTML = `
-      <div class="empty-state">
-        <div class="icon">⚠️</div>
-        <h3>Lỗi kết nối</h3>
-        <p>${err.message}<br>Vui lòng kiểm tra kết nối mạng và thử lại.</p>
-      </div>`;
+  } catch(err) {
+    document.getElementById('results').innerHTML=`
+      <div class="empty-state"><div class="icon">⚠️</div>
+      <h3>Lỗi kết nối</h3><p>${err.message}<br>Vui lòng kiểm tra kết nối mạng và thử lại.</p></div>`;
   } finally {
-    btn.disabled = false;
-    document.getElementById('btnText').textContent = '🔎 Tra cứu tương tác';
+    btn.disabled=false;
+    document.getElementById('btnText').textContent='🔎 Tra cứu tương tác';
   }
 }
 
-// ── Sort / Toggle / Copy ──────────────────────────────────
-let lastResults = [];
-let lastQ1 = '', lastQ2 = '';
-let currentSort = 'severity';
-
-const SEVERITY_ORDER = { 'Chống chỉ định': 0, 'Chống chỉ định có điều kiện': 1, 'Thận trọng': 2 };
-
-function setSort(mode, btn) {
-  currentSort = mode;
-  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+function setSort(mode,btn) {
+  currentSort=mode;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderResults();
 }
 
 function renderResults() {
-  let sorted = [...lastResults];
-  if (currentSort === 'severity') {
-    sorted.sort((a, b) => {
-      const la = a['Mức độ']?.value || '';
-      const lb = b['Mức độ']?.value || '';
-      return (SEVERITY_ORDER[la] ?? 9) - (SEVERITY_ORDER[lb] ?? 9);
+  const multiPair=lastPairResults.length>1;
+  let html='';
+  for (const {q1,q2,results} of lastPairResults) {
+    if (multiPair) {
+      const label=[q1,q2].filter(Boolean).join(' ⇄ ')||'(tất cả)';
+      const badge=results.length
+        ?`<span class="rgh-badge has">${results.length} kết quả</span>`
+        :`<span class="rgh-badge none">Không có tương tác</span>`;
+      html+=`<div class="result-group-header">💊 ${label}${badge}</div>`;
+    }
+    if (!results.length) continue;
+    let sorted=[...results];
+    if (currentSort==='severity') sorted.sort((a,b)=>{
+      const la=a['Mức độ']?.value||'',lb=b['Mức độ']?.value||'';
+      return (SEVERITY_ORDER[la]??9)-(SEVERITY_ORDER[lb]??9);
     });
+    html+=sorted.map(item=>renderCard(item,q1,q2)).join('');
   }
-  document.getElementById('results').innerHTML = sorted.map(item => renderCard(item, lastQ1, lastQ2)).join('');
+  document.getElementById('results').innerHTML=html;
 }
 
 function toggleCard(uid) {
-  const body = document.getElementById(uid + '_body');
-  const icon = document.getElementById(uid + '_icon');
-  const header = document.getElementById(uid).querySelector('.card-header');
+  const body=document.getElementById(uid+'_body');
+  const icon=document.getElementById(uid+'_icon');
+  const header=document.getElementById(uid).querySelector('.card-header');
   body.classList.toggle('collapsed');
-  if (body.classList.contains('collapsed')) {
-    icon.textContent = '▸';
-    header.classList.add('collapsed-indicator');
-  } else {
-    icon.textContent = '▾';
-    header.classList.remove('collapsed-indicator');
-  }
+  if (body.classList.contains('collapsed')) { icon.textContent='▸'; header.classList.add('collapsed-indicator'); }
+  else { icon.textContent='▾'; header.classList.remove('collapsed-indicator'); }
+}
+function copyCard(uid,t1,t2,level,nhom,cochef,hq,xt,src) {
+  const text=`TƯƠNG TÁC THUỐC\nThuốc 1: ${t1}\nThuốc 2: ${t2}\nMức độ: ${level}\nNhóm: ${nhom}\nCơ chế: ${cochef}\nHậu quả: ${hq}\nXử trí: ${xt}\nNguồn: ${src}`;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.querySelector(`#${uid} .btn-icon`); if(!btn)return;
+    btn.textContent='✅'; btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='📋';btn.classList.remove('copied');},1800);
+  }).catch(()=>alert('Không thể sao chép.'));
 }
 
-function escAttr(s) {
-  return (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-}
-
-function copyCard(uid, t1, t2, level, nhom, cochef, hq, xt, src) {
-  const text =
-`TƯƠNG TÁC THUỐC
-Thuốc 1: ${t1}
-Thuốc 2: ${t2}
-Mức độ: ${level}
-Nhóm: ${nhom}
-Cơ chế: ${cochef}
-Hậu quả: ${hq}
-Xử trí: ${xt}
-Nguồn: ${src}`;
-
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector(`#${uid} .btn-icon`);
-    if (!btn) return;
-    btn.textContent = '✅';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1800);
-  }).catch(() => {
-    alert('Không thể sao chép. Vui lòng thử lại.');
+// ── Autocomplete for drug input ───────────────────────────
+function getDrugList(data) {
+  const map=new Map();
+  data.forEach(item=>{
+    const t1=item['Thuốc 1']?.value?.trim(), t2=item['Thuốc 2']?.value?.trim();
+    const lv=item['Mức độ']?.value||'';
+    if(t1&&!map.has(t1))map.set(t1,lv);
+    if(t2&&!map.has(t2))map.set(t2,lv);
   });
+  return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],'vi'));
+}
+function acHighlight(text,q) {
+  if(!q)return text;
+  return text.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark>$1</mark>');
 }
 
-// Auto-load & search on page load to show sample
-window.onload = async () => {
+function setupDrugInputAutocomplete(data) {
+  const input=document.getElementById('drugInput');
+  const wrap =document.getElementById('wrapDrugInput');
+  const list =getDrugList(data);
+  let activeIdx=-1, dropdown=null;
+
+  function closeDropdown(){if(dropdown){dropdown.remove();dropdown=null;}activeIdx=-1;}
+  function openDropdown(items,query){
+    closeDropdown(); if(!items.length)return;
+    dropdown=document.createElement('div'); dropdown.className='ac-dropdown';
+    items.forEach(([name],idx)=>{
+      const div=document.createElement('div'); div.className='ac-item';
+      div.innerHTML=`<span>${acHighlight(name,query)}</span>`;
+      div.addEventListener('mousedown',e=>{
+        e.preventDefault();
+        addDrug(name); input.value=''; closeDropdown();
+      });
+      dropdown.appendChild(div);
+    });
+    // attach to drug-tags-wrap for correct positioning
+    const tagsWrap=document.querySelector('.drug-tags-wrap');
+    tagsWrap.style.position='relative';
+    tagsWrap.appendChild(dropdown);
+    dropdown.style.top='100%'; dropdown.style.left='0'; dropdown.style.right='0';
+    dropdown.style.position='absolute'; dropdown.style.zIndex='999';
+  }
+  function updateActive(){
+    if(!dropdown)return;
+    const items=dropdown.querySelectorAll('.ac-item');
+    items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));
+    if(activeIdx>=0)items[activeIdx]?.scrollIntoView({block:'nearest'});
+  }
+  input.addEventListener('input',()=>{
+    const q=input.value.trim().toLowerCase(); if(!q){closeDropdown();return;}
+    const matches=list.filter(([name])=>name.toLowerCase().includes(q)&&!drugList.some(d=>d.toLowerCase()===name.toLowerCase())).slice(0,12);
+    matches.length?openDropdown(matches,input.value.trim()):closeDropdown();
+    activeIdx=-1;
+  });
+  input.addEventListener('keydown',e=>{
+    if(!dropdown)return;
+    const items=dropdown.querySelectorAll('.ac-item');
+    if(e.key==='ArrowDown'){e.preventDefault();activeIdx=Math.min(activeIdx+1,items.length-1);updateActive();}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeIdx=Math.max(activeIdx-1,0);updateActive();}
+    else if((e.key==='Enter'||e.key==='Tab')&&activeIdx>=0&&items[activeIdx]){
+      e.preventDefault();
+      const name=items[activeIdx].querySelector('span').textContent;
+      addDrug(name); input.value=''; closeDropdown();
+    } else if(e.key==='Escape') closeDropdown();
+  });
+  input.addEventListener('blur',()=>setTimeout(closeDropdown,150));
+}
+
+// ── Init ──────────────────────────────────────────────────
+window.onload=async()=>{
+  renderHistory();
   try {
-    const data = await fetchData();
-    setupAutocomplete('drug1', 'wrap1', data);
-    setupAutocomplete('drug2', 'wrap2', data);
-    // Update badge with live count
-    const badge = document.querySelector('.badge');
-    if (badge && data.length > 0) {
-      badge.textContent = `📊 ${data.length.toLocaleString('vi-VN')} cặp tương tác trong CSDL`;
-    }
+    const data=await fetchData();
+    setupDrugInputAutocomplete(data);
+    const badge=document.querySelector('.badge');
+    if(badge&&data.length>0) badge.textContent=`📊 ${data.length.toLocaleString('vi-VN')} cặp tương tác trong CSDL`;
   } catch {}
 };
 
 // ── PWA Install Prompt ────────────────────────────────────
-let deferredPrompt = null;
-const installBanner = document.getElementById('installBanner');
-const btnInstall    = document.getElementById('btnInstall');
-const btnDismiss    = document.getElementById('btnDismiss');
-
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  // Show banner after 3s nếu chưa dismiss
-  if (!sessionStorage.getItem('pwa-dismissed')) {
-    setTimeout(() => installBanner.classList.add('show'), 3000);
-  }
+let deferredPrompt=null;
+const installBanner=document.getElementById('installBanner');
+const btnInstall=document.getElementById('btnInstall');
+const btnDismiss=document.getElementById('btnDismiss');
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredPrompt=e;
+  if(!sessionStorage.getItem('pwa-dismissed')) setTimeout(()=>installBanner.classList.add('show'),3000);
 });
-
-btnInstall?.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  installBanner.classList.remove('show');
+btnInstall?.addEventListener('click',async()=>{
+  if(!deferredPrompt)return; deferredPrompt.prompt();
+  const{outcome}=await deferredPrompt.userChoice;
+  deferredPrompt=null; installBanner.classList.remove('show');
 });
-
-btnDismiss?.addEventListener('click', () => {
-  installBanner.classList.remove('show');
-  sessionStorage.setItem('pwa-dismissed', '1');
+btnDismiss?.addEventListener('click',()=>{
+  installBanner.classList.remove('show'); sessionStorage.setItem('pwa-dismissed','1');
 });
-
-window.addEventListener('appinstalled', () => {
-  installBanner.classList.remove('show');
-  deferredPrompt = null;
-});
-
-// ── Autocomplete ──────────────────────────────────────────
-function getDrugList(data) {
-  const map = new Map();
-  data.forEach(item => {
-    const t1 = item['Thuốc 1']?.value?.trim();
-    const t2 = item['Thuốc 2']?.value?.trim();
-    const lv = item['Mức độ']?.value || '';
-    if (t1) {
-      if (!map.has(t1)) map.set(t1, lv);
-    }
-    if (t2) {
-      if (!map.has(t2)) map.set(t2, lv);
-    }
-  });
-  // Sort alphabetically
-  return [...map.entries()].sort((a,b) => a[0].localeCompare(b[0], 'vi'));
-}
-
-function levelPill(lv) {
-  if (!lv) return '';
-  if (lv.includes('Chống chỉ định có điều kiện'))
-    return `<span class="ac-pill ac-pill-cccd">CĐ có ĐK</span>`;
-  if (lv.includes('Chống chỉ định'))
-    return `<span class="ac-pill ac-pill-ccc">Chống chỉ định</span>`;
-  if (lv.includes('Thận trọng'))
-    return `<span class="ac-pill ac-pill-tt">Thận trọng</span>`;
-  return '';
-}
-
-function acHighlight(text, q) {
-  if (!q) return text;
-  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp(`(${esc})`, 'gi'), '<mark>$1</mark>');
-}
-
-function setupAutocomplete(inputId, wrapId, data) {
-  const input = document.getElementById(inputId);
-  const wrap  = document.getElementById(wrapId);
-  const drugList = getDrugList(data);
-  let activeIdx = -1;
-  let dropdown = null;
-
-  function closeDropdown() {
-    if (dropdown) { dropdown.remove(); dropdown = null; }
-    activeIdx = -1;
-  }
-
-  function openDropdown(items, query) {
-    closeDropdown();
-    if (!items.length) return;
-
-    dropdown = document.createElement('div');
-    dropdown.className = 'ac-dropdown';
-
-    items.forEach(([name, lv], idx) => {
-      const div = document.createElement('div');
-      div.className = 'ac-item';
-      div.innerHTML = `<span>${acHighlight(name, query)}</span>`;
-      div.addEventListener('mousedown', e => {
-        e.preventDefault();
-        input.value = name;
-        closeDropdown();
-        // move focus to next input or trigger search
-        if (inputId === 'drug1') document.getElementById('drug2').focus();
-      });
-      dropdown.appendChild(div);
-    });
-
-    wrap.appendChild(dropdown);
-  }
-
-  function updateActive() {
-    if (!dropdown) return;
-    const items = dropdown.querySelectorAll('.ac-item');
-    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
-    if (activeIdx >= 0) items[activeIdx]?.scrollIntoView({ block: 'nearest' });
-  }
-
-  input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    if (!q) { closeDropdown(); return; }
-    const matches = drugList
-      .filter(([name]) => name.toLowerCase().includes(q))
-      .slice(0, 12);
-    if (matches.length) openDropdown(matches, input.value.trim());
-    else closeDropdown();
-    activeIdx = -1;
-  });
-
-  input.addEventListener('keydown', e => {
-    if (!dropdown) return;
-    const items = dropdown.querySelectorAll('.ac-item');
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      activeIdx = Math.min(activeIdx + 1, items.length - 1);
-      updateActive();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      activeIdx = Math.max(activeIdx - 1, 0);
-      updateActive();
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (activeIdx >= 0 && items[activeIdx]) {
-        e.preventDefault();
-        input.value = items[activeIdx].querySelector('span').textContent;
-        closeDropdown();
-        if (e.key === 'Tab') {
-          if (inputId === 'drug1') document.getElementById('drug2').focus();
-        }
-      }
-    } else if (e.key === 'Escape') {
-      closeDropdown();
-    }
-  });
-
-  input.addEventListener('blur', () => {
-    setTimeout(closeDropdown, 150);
-  });
-}
+window.addEventListener('appinstalled',()=>{ installBanner.classList.remove('show'); deferredPrompt=null; });
 </script>
 </body>
 </html>
