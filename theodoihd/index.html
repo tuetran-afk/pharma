@@ -346,6 +346,11 @@ tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF
     <div class="card" style="margin-bottom:.5rem">
       <div class="toolbar">
         <input type="text" id="search-input-rr" placeholder="🔍 Tìm mặt hàng / BV..." oninput="renderRR()" style="flex:2;min-width:120px">
+        <select id="sel-source-rr" onchange="renderRR()" style="flex:1;min-width:120px">
+          <option value="">-- Tất cả khu vực --</option>
+          <option value="TP.HCM">🏙️ TP.HCM</option>
+          <option value="Tỉnh">🗺️ Tỉnh</option>
+        </select>
         <div class="ms-wrap" id="ms-bv-wrap-rr" style="flex:1.5;min-width:130px">
           <button class="ms-btn" id="ms-bv-btn-rr" onclick="toggleMsBV('rr',event)" type="button">
             <span class="ms-btn-text" id="ms-bv-label-rr">-- Tất cả bệnh viện --</span>
@@ -535,21 +540,39 @@ document.getElementById('file-in').addEventListener('change', e => {
         n.toLowerCase().includes('thầu rr') && (n.toLowerCase().includes('tp.hcm') || n.toLowerCase().includes('tphcm'))
       ) || wb.SheetNames.find(n =>
         n.toLowerCase().includes('rr') && (n.toLowerCase().includes('tp.hcm') || n.toLowerCase().includes('tphcm'))
-      ) || wb.SheetNames.find(n => n.toLowerCase().includes('thầu rr'));
+      );
 
+      // --- Load Thầu RR Tỉnh sheet ---
+      const sheetRRTinh = wb.SheetNames.find(n =>
+        n.toLowerCase().includes('thầu rr') && n.toLowerCase().includes('tỉnh')
+      ) || wb.SheetNames.find(n =>
+        n.toLowerCase().includes('rr') && n.toLowerCase().includes('tinh') && !n.toLowerCase().includes('hcm') && !n.toLowerCase().includes('tp')
+      );
+
+      allDataRR = [];
       if (sheetRR) {
         const ws4 = wb.Sheets[sheetRR];
-        // Row 0 = title, Row 1 = headers → range:1 makes row 1 the header keys
         const rows4 = XLSX.utils.sheet_to_json(ws4, { defval: '', raw: false, range: 1 });
-        allDataRR = parseRowsRR(rows4);
-        const labelRR = 'Thầu RR – Chờ kết quả — ' + sheetRR;
+        const parsed = parseRowsRR(rows4, 'TP.HCM');
+        allDataRR = allDataRR.concat(parsed);
+      }
+      if (sheetRRTinh) {
+        const ws5 = wb.Sheets[sheetRRTinh];
+        // Sheet tỉnh: row 0=title, row 1=spare, row 2=headers → range:2
+        const rows5 = XLSX.utils.sheet_to_json(ws5, { defval: '', raw: false, range: 2 });
+        const parsed = parseRowsRRTinh(rows5, 'Tỉnh');
+        allDataRR = allDataRR.concat(parsed);
+      }
+      if (sheetRR || sheetRRTinh) {
+        const sheetLabel = [sheetRR, sheetRRTinh].filter(Boolean).join(' + ');
+        const labelRR = 'Thầu RR – Chờ kết quả — ' + sheetLabel;
         document.getElementById('update-time-rr').textContent = labelRR + ' 💾';
         document.getElementById('update-time-rr').style.display = activeTab === 'rr' ? '' : 'none';
         try { localStorage.setItem('thau_rr_data', JSON.stringify(allDataRR)); localStorage.setItem('thau_rr_label', labelRR); } catch(e){}
         renderRR();
       }
 
-      toast('✅ Đã tải từ ' + f.name + (sheetHCM ? ' [TPHCM]' : '') + (sheetTinh ? ' [Tỉnh]' : '') + (sheetQG ? ' [Quốc Gia]' : '') + (sheetRR ? ' [Chờ KQ]' : ''));
+      toast('✅ Đã tải từ ' + f.name + (sheetHCM ? ' [TPHCM]' : '') + (sheetTinh ? ' [Tỉnh]' : '') + (sheetQG ? ' [Quốc Gia]' : '') + (sheetRR ? ' [Chờ KQ HCM]' : '') + (sheetRRTinh ? ' [Chờ KQ Tỉnh]' : ''));
     } catch(err) { toast('❌ Lỗi: ' + err.message); console.error(err); }
   };
   rd.readAsArrayBuffer(f);
@@ -1403,7 +1426,7 @@ function renderQG() {
 }
 
 // ── PARSE THẦU RR (Chờ kết quả) ──
-function parseRowsRR(rows) {
+function parseRowsRR(rows, source) {
   const hdr = rows.length ? Object.keys(rows[0]) : [];
   // Sheet "Thầu RR (TP.HCM)" header row 1 (0-indexed):
   // [0]=Năm KQ, [1]=Năm đóng thầu, [2]=check, [3]=TT dự thầu, [4]=TT trúng thầu,
@@ -1478,9 +1501,82 @@ function parseRowsRR(rows) {
         ngayCoKQ:     lastNgayKQ,
         hasKQ:        !!lastNgayKQ,
         daysUntil:    lastNgayDong ? Math.round((new Date(lastNgayDong) - TODAY) / 86400000) : null,
+        source:       source || 'TP.HCM',
       };
     })
     // Filter: chỉ giữ rows CHƯA có ngày kết quả
+    .filter(r => !r.hasKQ);
+}
+
+// ── PARSE THẦU RR TỈNH (Chờ kết quả) ──
+function parseRowsRRTinh(rows, source) {
+  const hdr = rows.length ? Object.keys(rows[0]) : [];
+  // Sheet "Thầu RR (tỉnh)" — không có cột Năm KQ ở đầu:
+  // [0]=ĐiểmKT BMT, [1]=ĐiểmKT NT, [2]=Hàng cạnh tranh,
+  // [3]=Tên bệnh viện, [4]=Tên mặt hàng, [5]=Số lượng dự thầu,
+  // [6]=Giá dự thầu, [7]=Thành tiền, [8]=Công ty thầu,
+  // [9]=Kết quả trúng thầu, [10]=Thời điểm đóng thầu,
+  // [11]=Ngày có KQ thầu, [12]=Người làm thầu
+  const colBV     = hdr[3];
+  const colMH     = hdr[4];
+  const colSL     = hdr[5];
+  const colGia    = hdr[6];
+  const colCty    = hdr[8];
+  const colKQ     = hdr[9];
+  const colNgay   = hdr[10];
+  const colNgayKQ = hdr[11];
+  const colNguoi  = hdr[12];
+
+  const sn = v => { try { if(v===''||v==null) return 0; return parseFloat(String(v).replace(/[^\d.-]/g,''))||0; } catch{return 0;} };
+  const sd = v => {
+    try {
+      if (!v || String(v).trim() === '' || String(v).trim() === 'NaT') return null;
+      const s = String(v).trim();
+      const dmY = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmY) return `${dmY[3]}-${dmY[2].padStart(2,'0')}-${dmY[1].padStart(2,'0')}`;
+      const d = new Date(v);
+      if (!isNaN(d) && d.getFullYear() > 2000) return d.toISOString().slice(0,10);
+      return null;
+    } catch{return null;}
+  };
+
+  let lastBV = '', lastNgayDong = null, lastNgayKQ = null;
+
+  return rows
+    .filter(r => {
+      const bv = String(r[colBV]||'').trim();
+      const mh = String(r[colMH]||'').trim();
+      if (!bv || !mh) return false;
+      if (bv.toLowerCase().startsWith('cộng') || bv.toLowerCase().startsWith('cong')) return false;
+      // Bỏ dòng đã có kết quả rõ ràng (check sau khi forward-fill)
+      return true;
+    })
+    .map(r => {
+      const bv = String(r[colBV]||'').trim();
+      if (bv !== lastBV) {
+        lastBV = bv;
+        lastNgayDong = null;
+        lastNgayKQ   = null;
+      }
+      const rawNgay   = sd(r[colNgay]);
+      const rawNgayKQ = sd(r[colNgayKQ]);
+      if (rawNgay)   lastNgayDong = rawNgay;
+      if (rawNgayKQ) lastNgayKQ   = rawNgayKQ;
+
+      return {
+        bv,
+        matHang:      String(r[colMH]||'').trim(),
+        slDuThau:     sn(r[colSL]),
+        giaDuThau:    sn(r[colGia]),
+        congTy:       String(r[colCty]||'').trim(),
+        nguoi:        String(r[colNguoi]||'').trim(),
+        ngayDongThau: lastNgayDong,
+        ngayCoKQ:     lastNgayKQ,
+        hasKQ:        !!lastNgayKQ,
+        daysUntil:    lastNgayDong ? Math.round((new Date(lastNgayDong) - TODAY) / 86400000) : null,
+        source:       source || 'Tỉnh',
+      };
+    })
     .filter(r => !r.hasKQ);
 }
 
@@ -1488,8 +1584,10 @@ function parseRowsRR(rows) {
 function renderRR() {
   refreshBVSel('rr');
   const fSearch = (document.getElementById('search-input-rr').value || '').toLowerCase().trim();
+  const fSource = document.getElementById('sel-source-rr').value;
   const filtered = allDataRR.filter(r => {
     if (_selectedBVs['rr'].size > 0 && !_selectedBVs['rr'].has(r.bv)) return false;
+    if (fSource && r.source !== fSource) return false;
     if (fSearch && !(r.matHang + ' ' + r.bv).toLowerCase().includes(fSearch)) return false;
     return true;
   });
@@ -1505,6 +1603,10 @@ function renderRR() {
   // BV unique cho mỗi nhóm
   const bvChuaMo   = new Set(chuaMoThau.map(r => r.bv)).size;
   const bvChoKQ    = new Set(dangChoKQ.map(r => r.bv)).size;
+
+  // Stats — tách theo source
+  const hcmCount  = filtered.filter(r => r.source === 'TP.HCM').length;
+  const tinhCount = filtered.filter(r => r.source === 'Tỉnh').length;
 
   document.getElementById('stats-row-rr').innerHTML = `
     <div class="stat">
@@ -1527,6 +1629,8 @@ function renderRR() {
       <div class="stat-val" style="color:#856404;font-size:18px">${fmtM(dangChoKQ.reduce((s,r)=>s+r.slDuThau*r.giaDuThau,0))}</div>
       <div class="stat-sub">thành tiền dự thầu</div>
     </div>
+    ${hcmCount > 0 ? `<div class="stat"><div class="stat-label" style="color:#0C447C">🏙️ TP.HCM</div><div class="stat-val" style="color:#0C447C">${hcmCount}</div><div class="stat-sub">mục chờ KQ</div></div>` : ''}
+    ${tinhCount > 0 ? `<div class="stat"><div class="stat-label" style="color:#2C6E49">🗺️ Tỉnh</div><div class="stat-val" style="color:#2C6E49">${tinhCount}</div><div class="stat-sub">mục chờ KQ</div></div>` : ''}
   `;
 
   // Group by BV
@@ -1559,6 +1663,10 @@ function renderRR() {
     const gRows = grouped[bv];
     const earliestDate = gRows.map(r => r.ngayDongThau).filter(Boolean).sort()[0];
     const bvKey = encodeURIComponent(bv);
+    const src = gRows[0].source;
+    const srcTag = src === 'Tỉnh'
+      ? `<span style="margin-left:5px;font-size:9px;padding:0 5px;border-radius:6px;background:#E8F5E9;color:#2C6E49;font-weight:700;border:1px solid #A5D6A7">Tỉnh</span>`
+      : `<span style="margin-left:5px;font-size:9px;padding:0 5px;border-radius:6px;background:#E6F1FB;color:#0C447C;font-weight:700;border:1px solid #85B7EB">HCM</span>`;
 
     const dateTag = earliestDate
       ? `<span style="margin-left:6px;font-size:10px;padding:0 6px;border-radius:8px;background:#E6F1FB;color:#0C447C;font-weight:600;border:1px solid #85B7EB">📅 ${fmtDate(earliestDate)}</span>`
@@ -1568,7 +1676,7 @@ function renderRR() {
     html += `<tr class="grp-hdr" style="cursor:pointer" onclick="toggleGroup('rr','${bvKey}')">
       <td colspan="6"><div class="grp-sticky">
         <span id="toggle-icon-rr-${bvKey}" style="font-size:11px;margin-right:2px;transition:transform .2s;display:inline-block">▾</span>
-        ${bv}${dateTag}${mhTag}
+        ${bv}${srcTag}${dateTag}${mhTag}
       </div></td>
     </tr>`;
 
