@@ -149,6 +149,9 @@ td.center{text-align:center}
 /* Row warning highlight */
 tbody tr.warn-red td.pin-bv,tbody tr.warn-red td.pin-mat{background:#FFF5F5!important}
 tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF0!important}
+/* Rớt highlight */
+tbody tr.rot-row td{background:#FFF5F5 !important}
+tbody tr.rot-row td.pin-mat{background:#FFF5F5 !important}
 
 /* Tooltip */
 .tip{position:fixed;z-index:999;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:10px;font-size:11px;color:var(--text);pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:260px;max-width:340px}
@@ -350,6 +353,7 @@ tbody tr.warn-yellow td.pin-bv,tbody tr.warn-yellow td.pin-mat{background:#FFFDF
           <option value="">-- Tất cả khu vực --</option>
           <option value="TP.HCM">🏙️ TP.HCM</option>
           <option value="Tỉnh">🗺️ Tỉnh</option>
+          <option value="rot">🚫 Rớt thầu</option>
         </select>
         <div class="ms-wrap" id="ms-bv-wrap-rr" style="flex:1.5;min-width:130px">
           <button class="ms-btn" id="ms-bv-btn-rr" onclick="toggleMsBV('rr',event)" type="button">
@@ -1440,6 +1444,7 @@ function parseRowsRR(rows, source) {
   const colMH     = hdr[9];
   const colSL     = hdr[10];
   const colGia    = hdr[11];
+  const colTT     = hdr[12];  // Thành tiền (raw — có thể ghi "Rớt")
   const colCty    = hdr[13];
   const colKQ     = hdr[14];
   const colNgay   = hdr[15];  // Thời điểm đóng thầu
@@ -1490,11 +1495,16 @@ function parseRowsRR(rows, source) {
       if (rawNgay)   lastNgayDong = rawNgay;
       if (rawNgayKQ) lastNgayKQ   = rawNgayKQ;
 
+      const thanhTienRaw = String(r[colTT]||'').trim();
+      const isRot = thanhTienRaw.toLowerCase() === 'rớt' || thanhTienRaw.toLowerCase() === 'rot';
       return {
         bv,
         matHang:      String(r[colMH]||'').trim(),
         slDuThau:     sn(r[colSL]),
         giaDuThau:    sn(r[colGia]),
+        thanhTienRaw,
+        isRot,
+        ketQua:       String(r[colKQ]||'').trim(),
         congTy:       String(r[colCty]||'').trim(),
         nguoi:        String(r[colNguoi]||'').trim(),
         ngayDongThau: lastNgayDong,
@@ -1521,6 +1531,7 @@ function parseRowsRRTinh(rows, source) {
   const colMH     = hdr[4];
   const colSL     = hdr[5];
   const colGia    = hdr[6];
+  const colTT     = hdr[7];  // Thành tiền (raw — có thể ghi "Rớt")
   const colCty    = hdr[8];
   const colKQ     = hdr[9];
   const colNgay   = hdr[10];
@@ -1563,11 +1574,16 @@ function parseRowsRRTinh(rows, source) {
       if (rawNgay)   lastNgayDong = rawNgay;
       if (rawNgayKQ) lastNgayKQ   = rawNgayKQ;
 
+      const thanhTienRaw = String(r[colTT]||'').trim();
+      const isRot = thanhTienRaw.toLowerCase() === 'rớt' || thanhTienRaw.toLowerCase() === 'rot';
       return {
         bv,
         matHang:      String(r[colMH]||'').trim(),
         slDuThau:     sn(r[colSL]),
         giaDuThau:    sn(r[colGia]),
+        thanhTienRaw,
+        isRot,
+        ketQua:       String(r[colKQ]||'').trim(),
         congTy:       String(r[colCty]||'').trim(),
         nguoi:        String(r[colNguoi]||'').trim(),
         ngayDongThau: lastNgayDong,
@@ -1587,7 +1603,8 @@ function renderRR() {
   const fSource = document.getElementById('sel-source-rr').value;
   const filtered = allDataRR.filter(r => {
     if (_selectedBVs['rr'].size > 0 && !_selectedBVs['rr'].has(r.bv)) return false;
-    if (fSource && r.source !== fSource) return false;
+    if (fSource === 'rot') { if (!r.isRot) return false; }
+    else if (fSource && r.source !== fSource) return false;
     if (fSearch && !(r.matHang + ' ' + r.bv).toLowerCase().includes(fSearch)) return false;
     return true;
   });
@@ -1600,6 +1617,8 @@ function renderRR() {
   const chuaMoThau = filtered.filter(r => r.daysUntil != null && r.daysUntil > 0);
   // Đang chờ KQ: đã qua ngày mở thầu (daysUntil <= 0) hoặc không có ngày
   const dangChoKQ  = filtered.filter(r => r.daysUntil == null || r.daysUntil <= 0);
+  // Rớt
+  const rotItems   = filtered.filter(r => r.isRot);
   // BV unique cho mỗi nhóm
   const bvChuaMo   = new Set(chuaMoThau.map(r => r.bv)).size;
   const bvChoKQ    = new Set(dangChoKQ.map(r => r.bv)).size;
@@ -1631,6 +1650,7 @@ function renderRR() {
     </div>
     ${hcmCount > 0 ? `<div class="stat"><div class="stat-label" style="color:#0C447C">🏙️ TP.HCM</div><div class="stat-val" style="color:#0C447C">${hcmCount}</div><div class="stat-sub">mục chờ KQ</div></div>` : ''}
     ${tinhCount > 0 ? `<div class="stat"><div class="stat-label" style="color:#2C6E49">🗺️ Tỉnh</div><div class="stat-val" style="color:#2C6E49">${tinhCount}</div><div class="stat-sub">mục chờ KQ</div></div>` : ''}
+    ${rotItems.length > 0 ? `<div class="stat" style="outline:2px solid #C0392B;background:#FFF5F5"><div class="stat-label" style="color:#C0392B">🚫 Rớt thầu</div><div class="stat-val" style="color:#C0392B">${rotItems.length}</div><div class="stat-sub">${new Set(rotItems.map(r=>r.bv)).size} bệnh viện</div></div>` : ''}
   `;
 
   // Group by BV
@@ -1697,11 +1717,21 @@ function renderRR() {
         daysCell = `<span style="font-size:11px;font-weight:600;color:${color}">${label}</span>`;
       }
 
-      html += `<tr data-tab="rr" data-grp="${bvKey}">
+      // Thành tiền cell — nếu "Rớt" thì hiển thị badge, ngược lại hiển thị số
+      let ttCell;
+      if (r.isRot) {
+        ttCell = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:#FEECEC;color:#C0392B;font-weight:700;font-size:11px;border:1px solid #F5ACAC">🚫 Rớt</span>`;
+      } else {
+        ttCell = tt > 0 ? fmtM(tt) : (r.thanhTienRaw || '—');
+      }
+
+      const rowCls = r.isRot ? 'rot-row' : '';
+
+      html += `<tr class="${rowCls}" data-tab="rr" data-grp="${bvKey}">
         <td class="pin-mat" style="left:0;padding-left:25px">${r.matHang}</td>
         <td class="num" style="border-left:1px solid var(--border)">${fmtN(r.slDuThau)}</td>
         <td class="num" style="border-left:1px solid var(--border)">${r.giaDuThau ? fmtN(r.giaDuThau) : '—'}</td>
-        <td class="num" style="border-left:1px solid var(--border)">${tt > 0 ? fmtM(tt) : '—'}</td>
+        <td class="num" style="border-left:1px solid var(--border);text-align:${r.isRot?'center':'right'}">${ttCell}</td>
         <td class="center" style="border-left:2px solid var(--border2)">${dateCell}</td>
         <td class="center" style="border-left:1px solid var(--border)">${daysCell}</td>
       </tr>`;
