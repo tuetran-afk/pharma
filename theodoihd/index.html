@@ -1650,7 +1650,6 @@ function renderRR() {
     </div>
     ${hcmCount > 0 ? `<div class="stat"><div class="stat-label" style="color:#0C447C">🏙️ TP.HCM</div><div class="stat-val" style="color:#0C447C">${hcmCount}</div><div class="stat-sub">mục chờ KQ</div></div>` : ''}
     ${tinhCount > 0 ? `<div class="stat"><div class="stat-label" style="color:#2C6E49">🗺️ Tỉnh</div><div class="stat-val" style="color:#2C6E49">${tinhCount}</div><div class="stat-sub">mục chờ KQ</div></div>` : ''}
-    ${rotItems.length > 0 ? `<div class="stat" style="outline:2px solid #C0392B;background:#FFF5F5"><div class="stat-label" style="color:#C0392B">🚫 Rớt thầu</div><div class="stat-val" style="color:#C0392B">${rotItems.length}</div><div class="stat-sub">${new Set(rotItems.map(r=>r.bv)).size} bệnh viện</div></div>` : ''}
   `;
 
   // Group by BV
